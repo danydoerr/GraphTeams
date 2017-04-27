@@ -60,7 +60,14 @@ def division(G, NG, H, NH, delta):
         HX, NHX, GX, NGX = division(H, NH, G, NG, delta)
     else:
         # get an arbitrary connected component from G
-        C = nx.node_connected_component(G, next(G.nodes_iter()))
+        # XXX workaround for networkx 2.0 change of API
+        v = None
+        if hasattr(G, 'nodes_iter'):
+            v = next(G.nodes_iter())
+        else:
+            # nodes() returns now a generator in NetworkX version 2.0
+            v = next(G.nodes())
+        C = nx.node_connected_component(G, v)
         GX = G.subgraph(C)
         G.remove_nodes_from(C)
         # split class table
