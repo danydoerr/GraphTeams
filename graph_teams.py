@@ -8,6 +8,13 @@ import networkx as nx
 DEFAULT_DELTA = 1
 DEFAULT_OUT_PREFIX = 'teams'
 
+#
+# XXX monkey-patching new networkX API
+#
+if not hasattr(nx.Graph, 'nodes_iter'):
+    setattr(nx.Graph, 'nodes_iter', nx.Graph.nodes)
+
+
 def pruneToClasses(G, classes, delta=-1):
     """ remove all nodes from graph that do not belong to given set of classes;
     in doing so, establish direct edges between neighbors of removed vertices
@@ -31,10 +38,21 @@ def constructClassTable(G):
         res[c].add(v)
     return res
 
+def toSPGraph(G, delta):
+    
+    SP = nx.shortest_path_length(G, weight='weight')
+    spG = nx.Graph()
+    spG.add_nodes_from(G.nodes(data=True))
+    
+    for u, val in SP.items():
+        for v, d in val.items():
+            if u != v and d <= delta:
+                spG.add_edge(u, v, weight=d)
 
-def findTeams(G, H, delta):
-    """ find all graph teams in G, H with max-distance delta between any two
-    connected nodes """
+    return spG
+
+def findTeams(G, H):
+    """ find all graph 1-teams in G, H """
     res = list()
  
     # initial element of the queue are both graphs with their class tables
@@ -43,31 +61,25 @@ def findTeams(G, H, delta):
         G, NG, H, NH = queue.pop()
         # do not output graphs containing single vertices
         if nx.is_connected(G) and nx.is_connected(H):
+            # size() returns #edges
             if G.size() or H.size():
                 res.append((G, H))
         else:
-            GX, NGX, HX, NHX = division(G, NG, H, NH, delta)
+            GX, NGX, HX, NHX = division(G, NG, H, NH)
             queue.extend(((GX, NGX, HX, NHX), (G, NG, H, NH)))
     return res
 
 
-def division(G, NG, H, NH, delta):
+def division(G, NG, H, NH):
     """ parititions graphs G, H, and talbes NG, NH into four separate graphs and
     tables, overlapping only at vertices with shared classes. NOTE: function
     will not terminate if both G and H are connected! """
 
     if nx.is_connected(G):
-        HX, NHX, GX, NGX = division(H, NH, G, NG, delta)
+        HX, NHX, GX, NGX = division(H, NH, G, NG)
     else:
         # get an arbitrary connected component from G
-        # XXX workaround for networkx 2.0 change of API
-        v = None
-        if hasattr(G, 'nodes_iter'):
-            v = next(G.nodes_iter())
-        else:
-            # nodes() returns now a generator in NetworkX version 2.0
-            v = next(G.nodes())
-        C = nx.node_connected_component(G, v)
+        C = nx.node_connected_component(G, next(G.nodes_iter()))
         GX = G.subgraph(C)
         G.remove_nodes_from(C)
         # split class table
@@ -90,20 +102,7 @@ def division(G, NG, H, NH, delta):
                 NHX[f] = NH.pop(f)
             else:
                 NHX[f] = set(NH[f])
-
         HX = H.subgraph(chain(*NHX.values()))
-        # capture distances between vertices with paths not in HX
-        boundary = set()
-        for (u, v) in nx.edge_boundary(H, HX.nodes()):
-            if HX.has_node(u):
-                boundary.add(u)
-            else:
-                boundary.add(v)
-        for u, v in combinations(boundary, 2):
-            if not HX.has_edge(u, v):
-                w = nx.dijkstra_path_length(H, u, v, weight='weight')
-                if w <= delta:
-                    HX.add_edge(u, v, weight=w)
         # remove HX from H
         H.remove_nodes_from(chain(*(NHX[f] for f in NHX.keys() if not
             NH.has_key(f))))
@@ -147,12 +146,14 @@ if __name__ == '__main__':
         if data['weight'] > args.delta:
             H.remove_edge(u, v)
 
-    teams = findTeams(G, H, args.delta)
+    G = toSPGraph(G, args.delta)
+    H = toSPGraph(H, args.delta)
+
+    teams = findTeams(G, H)
     out1 = open('%s.1.gml' %args.out_file_prefix, 'w')
     out2 = open('%s.2.gml' %args.out_file_prefix, 'w')
 
     for GX, HX in teams:
         nx.write_gml(GX, out1)
         nx.write_gml(HX, out2)
-
 
