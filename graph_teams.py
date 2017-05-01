@@ -44,8 +44,8 @@ def toSPGraph(G, delta):
     spG = nx.Graph()
     spG.add_nodes_from(G.nodes(data=True))
     
-    for u, val in SP.items():
-        for v, d in val.items():
+    for u in SP:
+        for v, d in SP[u].items():
             if u != v and d <= delta:
                 spG.add_edge(u, v, weight=d)
 
