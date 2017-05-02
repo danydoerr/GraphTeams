@@ -17,8 +17,10 @@ if not hasattr(nx.Graph, 'nodes_iter'):
 
 
 def next_delta_connected(G, S, source, delta):
-    """ traverses graph G by BFS, reporting vertices of S as long as any two of
-    its members (which must include the source) is closer than delta """
+    """ Traverses graph G by BFS: In each step, the function reports a
+    (previously unreported) vertex s of S as long as there exists a path with
+    distance <= delta from an already reported member to to s. Requires that
+    source must be part of S."""
  
     S = set(S)
     if G.node[source]['class'] not in S:
@@ -56,7 +58,7 @@ def smallMax(S, G, H, sG, sH, delta):
         try: 
             v, s = next(BFS_G)
             S_G.add(s)
-            V_G.add(s)
+            V_G.add(v)
         except StopIteration:
             return 1, V_G, S_G
         try:
@@ -129,7 +131,7 @@ def division(i, V, Sp, NG, NH):
     NGX = dict()
     NHX = dict()
     for s in Sp:
-        # move vertices not in V of table NG to NGX
+        # move vertices in V of table NG to NGX
         NGX[s] = set()
         for v in list(NG[s]):
             if v in V:
@@ -143,6 +145,7 @@ def division(i, V, Sp, NG, NH):
             NHX[s] = NH.pop(s)
         else:
             del NGX[s]
+
     # switch again to original order
     if i == 2:
         NHX, NGX = NGX, NHX
