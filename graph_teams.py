@@ -7,7 +7,6 @@ from collections import deque
 import networkx as nx
 
 DEFAULT_DELTA = 1
-DEFAULT_OUT_PREFIX = 'teams'
 
 #
 # XXX monkey-patching new networkX API
@@ -154,10 +153,6 @@ def division(i, V, Sp, NG, NH):
 
 if __name__ == '__main__':
     parser = ArgumentParser(formatter_class=ADHF)
-    parser.add_argument('-o', '--out_file_prefix', type=str,
-            default=DEFAULT_OUT_PREFIX,
-            help='Specify prefix for output files. The ending will ' + \
-                    '*always* be ".1.gml" and ".2.gml", respectively')
     parser.add_argument('-d', '--delta', type=int, default=DEFAULT_DELTA,
             help='max-distance threshold \delta')
     parser.add_argument('-s', '--simplify', action='store_true',
@@ -188,11 +183,13 @@ if __name__ == '__main__':
         teams = findDeltaTeams(G, H, args.delta)
 
     if teams:
-        print >> stdout, 'common_classes\t%s\t%s'%(args.graph_file1,
+        out = stdout
+        print >> out, 'common_classes\t%s\t%s'%(args.graph_file1,
                 args.graph_file2)
         for NG, NH in teams:
-            print '\t'.join((';'.join(map(str, NG.keys())), ';'.join(map(str,
-                chain(*NG.values()))), ';'.join(map(str, chain(*NH.values())))))
+            print >> out, '\t'.join((';'.join(map(str, NG.keys())),
+                ';'.join(map(str, chain(*NG.values()))), ';'.join(map(str,
+                    chain(*NH.values())))))
     else:
         print >> stderr, 'No %s-teams found' %args.delta
 
