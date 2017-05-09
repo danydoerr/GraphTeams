@@ -23,6 +23,7 @@ coefList = []
 
 for i in range(len(mapList)):
 	entries = []
+	diagEntrs = []
 	#a dictionary to store all values of contact counts we observe
 	cCDict = {}
 	#this is only to simplify notations
@@ -32,6 +33,16 @@ for i in range(len(mapList)):
 		for j in range(len(mAp[i])):
 			if mAp[i][j] != "NULL":
 				entries.append(float(mAp[i][j]))
+				if j == i + 1:
+					diagEntrs.append(float(mAp[i][j]))
+
+	#Compute the average value on the diagonal above the main diagonal of every chromosome
+	avgAbDiag = 0.0
+
+	for entr in diagEntrs:
+		avgAbDiag += entr
+
+	avgAbDiag = avgAbDiag / float(len(diagEntrs))
 
 	matMax = max(entries)
 
@@ -49,6 +60,8 @@ for i in range(len(mapList)):
 					cCDict[iv] += 1.0
 				else:
 					cCDict[iv] = 1.0
+			if i == j:
+				mAp[i][j] = str(matMax + 1.0 - avgAbDiag)
 
 	#get list for x and y values
 	x = []
