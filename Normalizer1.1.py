@@ -21,6 +21,7 @@ print "Loading done"
 #list for the normalization coefficients of each map
 coefList = []
 
+aryList = list()
 for i in range(len(mapList)):
 	entries = []
 	diagEntrs = []
@@ -28,6 +29,7 @@ for i in range(len(mapList)):
 	cCDict = {}
 	#this is only to simplify notations
 	mAp = mapList[i]
+	ary = np.empty(mapList[i].shape)
 
 	for i in range(len(mAp)):
 		for j in range(len(mAp[i])):
@@ -50,10 +52,10 @@ for i in range(len(mapList)):
 	for i in range(len(mAp)):
 		for j in range(len(mAp[i])):
 			if mAp[i][j] != "NULL":
-				mAp[i][j] = str(matMax + 1.0 - float(mAp[i][j]))
+				ary[i][j] = matMax + 1.0 - float(mAp[i][j])
 
 				#we cast the distance to iteger to have enough identical values
-				iv = str(int(float(mAp[i][j])))
+				iv = int(ary[i][j])
 
 				#fill cCDict
 				if iv in cCDict:
@@ -61,20 +63,21 @@ for i in range(len(mapList)):
 				else:
 					cCDict[iv] = 1.0
 			if i == j:
-				mAp[i][j] = str(matMax + 1.0 - avgAbDiag)
+				ary[i][j] = matMax + 1.0 - avgAbDiag
+
 
 	#get list for x and y values
 	x = []
 
 	for cC in cCDict:
-		x.append(float(int(cC)))
+		x.append(cC)
 
 	x.sort()
 
 	y = []
 
 	for cCV in x:
-		y.append(cCDict[str(int(cCV))])
+		y.append(cCDict[cCV])
 
 	#convert y into a numpy array
 	y = np.array(y)
@@ -88,6 +91,8 @@ for i in range(len(mapList)):
 
 	coefList.append([(y[1] - y[0]) / (x[1] - x[0]), y[0]])
 
+	
+	aryList.append(ary)
 #compute average coefficients
 cZero = 0.0
 cOne = 0.0
@@ -95,31 +100,41 @@ cOne = 0.0
 for coeffs in coefList:
 	cZero += coeffs[0]
 	cOne += coeffs[1]
+	print 'Identified coefficients: %s' %str(coeffs)
+
+#print coeffs
+#exit()
 
 numCoeffs = float(len(coefList))
 
 overallCzero = cZero / numCoeffs
 overallCone = cOne / numCoeffs
 
+print "overall coefficients: zero: ", str(overallCzero), " one: ", str(overallCone)
+
 print "Begin normalization"
 
 #Normalize each map
 for i in range(len(mapList)):
-	currCzero = overallCzero / coefList[i][0]
-	currCone = overallCone / coefList[i][1]
+	currCzero = coefList[i][0] / overallCzero #/ coefList[i][0]
+	currCone = overallCone - coefList[i][1]
+
+	print "Coefficients we normalize with: zero: ", str(currCzero), " one: ", str(currCone)
 
 	for k in range(len(mapList[i])):
 		for l in range(len(mapList[i][k])):
 			#we do not consider null entries
 			if mapList[i][k][l] != "NULL":
 				#calculate normalized value
-				nV = currCzero * math.log(float(mapList[i][k][l])) + currCone
+#				nV = math.exp(currCzero * math.log(aryList[i][k][l]) + currCone)
+				nV = currCzero * float(aryList[i][k][l]) + currCone
 
-				#store new value in map - we do not want negative distances
-				if nV < 0.0:
-					mapList[i][k][l] = "0.0"
-				else:
-					mapList[i][k][l] = str(nV)
+				aryList[i][k][l] = nV
+#				#store new value in map - we do not want negative distances
+#				if nV < 0.0:
+#					mapList[i][k][l] = "0.0"
+#				else:
+#					mapList[i][k][l] = str(nV)
 
 print "Normalisation done"
 
@@ -129,7 +144,10 @@ for i in range(len(mapList)):
 
 	for k in range(len(mapList[i])):
 		for l in range(len(mapList[i][0])):
-			mapfile.write(mapList[i][k][l])
+			if mapList[i][k][l] != 'NULL':
+				mapfile.write('%f' %aryList[i][k][l])
+			else:
+				mapfile.write('NULL')
 
 			#check if we have read the end of the line
 			if l + 1 != len(mapList[i][0]):
