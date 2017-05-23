@@ -2,8 +2,9 @@
 
 from sys import stdout, stderr, exit
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter as ADHF
-from itertools import combinations, chain
+from itertools import combinations, chain, imap
 from collections import deque
+from random import choice
 import networkx as nx
 
 DEFAULT_DELTA = 1
@@ -15,17 +16,15 @@ if not hasattr(nx.Graph, 'nodes_iter'):
     setattr(nx.Graph, 'nodes_iter', nx.Graph.nodes)
 
 
-def next_delta_connected(G, S, source, delta):
-    """ Traverses graph G by BFS: In each step, the function reports a
+def next_delta_connected(G, S, delta):
+    """ traverses graph G by BFS: in each step, the function reports a
     (previously unreported) vertex s of S as long as there exists a path with
-    distance <= delta from an already reported member to to s. Requires that
-    source must be part of S."""
- 
-    S = set(S)
-    if G.node[source]['class'] not in S:
-        raise Exception('Source not part of set S')
-    yield source, G.node[source]['class']
+    distance <= delta from an already reported member to to s; requires that
+    source must be part of S"""
 
+    source = choice(S)
+    S = set(S)
+    yield source
     visited = set((source, ))
     
     queue = deque((source, v, 0) for v in G.neighbors(source))
@@ -36,36 +35,38 @@ def next_delta_connected(G, S, source, delta):
         dv = d + G[u][v]['weight']
         if dv > delta:
             continue
-        s = G.node[v]['class']
-        if s in S:
+        if v in S:
             dv = 0
-            yield v, s
+            yield v
         visited.add(v)
         queue.extend((v, w, dv) for w in G.neighbors(v))
 
 
-def smallMax(S, G, H, sG, sH, delta):
+def smallMax(Ss, Gs, delta):
     """ identify smallest \delta-set in either G or H """
-    
-    BFS_G = next_delta_connected(G, S, sG, delta)
-    BFS_H = next_delta_connected(H, S, sH, delta)
-    V_G = set()
-    V_H = set()
-    S_G = set()
-    S_H = set()
-    while True:
-        try: 
-            v, s = next(BFS_G)
-            S_G.add(s)
-            V_G.add(v)
-        except StopIteration:
-            return 1, V_G, S_G
-        try:
-            v, s = next(BFS_H)
-            S_H.add(s)
-            V_H.add(v)
-        except StopIteration:
-            return 2, V_H, S_H
+   
+    BFS_handles = [next_delta_connected(Gs[i], Ss[i], delta) for i in
+            xrange(len(Gs))]
+
+    Vs = [set() for _ in xrange(len(Gs))]
+    ps = [True for _ in xrange(len(Gs))]
+
+    while any(ps) and all(imap(lambda i: ps[i] or (len(Vs[i]) == len(Ss[i])), \
+            xrange(len(Gs)))):
+
+        for i in xrange(len(Gs)):
+            try: 
+                v = next(BFS_handles[i])
+                Vs[i].add(v)
+            except StopIteration:
+                ps[i] = False
+
+    # search for any maximal \delta-set that is smaller than its input set...
+    for i in xrange(len(Gs)-1):
+        if len(Vs[i]) != len(Ss[i]):
+            return i, Vs[i] 
+    #... if none is found, return first set by default
+    return len(Gs)-1, Vs[len(Gs)-1]
 
 
 def constructClassTable(G, classes):
@@ -93,62 +94,58 @@ def toSPGraph(G, delta):
     return spG
 
 
-def findDeltaTeams(G, H, delta):
+def findDeltaTeams(Gs, delta):
     """ find all graph delta-teams in G, H """
     res = list()
  
     # common classes
-    classes = set([data['class'] for _, data in G.nodes(data=True)])
-    classes.intersection_update([data['class'] for _, data in
-        H.nodes(data=True)])
+    classes = set([data['class'] for _, data in Gs[0].nodes(data=True)])
+    for i in xrange(1, len(Gs)):
+        classes.intersection_update([data['class'] for _, data in
+            Gs[i].nodes(data=True)])
 
     # initial element of the queue is the set of common classes with graph
     # tables
-    queue = [(constructClassTable(G, classes), constructClassTable(H, classes))]
+    queue = [tuple(constructClassTable(G, classes) for G in Gs)]
     while queue:
-        NG, NH = queue.pop()
-        source = next(iter(NG))
-        i, V, Sp = smallMax(NG.keys(), G, H, next(iter(NG[source])),
-                next(iter(NH[source])), delta)
-        if len(Sp) == len(NG):
-            if len(Sp) > 1:
-                res.append((NG, NH))
+        NG = queue.pop()
+        Ss = [list(chain(*NG[i].values())) for i in xrange(len(Gs))]
+        i, Sp = smallMax(Ss, Gs, delta)
+        if len(Ss[i]) == len(Sp):
+            if any(imap(lambda x: len(x) > 1, Ss)):
+                res.append(NG)
         else:
-            queue.append((NG, NH))
-            queue.append(division(i, V, Sp, NG, NH))
+            queue.append(NG)
+            queue.append(division(i, Sp, set(Gs[i].node[v]['class'] for v in
+                Sp), NG))
     return res
 
 
-def division(i, V, Sp, NG, NH):
-    """ parititions tables NG, NH into four separate graphs and
-    tables, overlapping only at vertices with shared classes. """
+def division(i, S, C, NG):
+    """ parititions each table in NG, into two separate tables, overlapping
+    only at vertices with shared classes. """
 
-    # split first the table where V is from
-    if i == 2:
-        NH, NG = NG, NH
+    NGX = [dict() for _ in NG]
     # split class table
-    NGX = dict()
-    NHX = dict()
-    for s in Sp:
-        # move vertices in V of table NG to NGX
-        NGX[s] = set()
-        for v in list(NG[s]):
-            if v in V:
-                NG[s].remove(v)
-                NGX[s].add(v)
-        # copy/move entries of NHX table 
-        if len(NG[s]) and len(NGX[s]):
-            NHX[s] = set(NH[s])
-        elif len(NGX[s]):
-            del NG[s]
-            NHX[s] = NH.pop(s)
-        else:
-            del NGX[s]
-
-    # switch again to original order
-    if i == 2:
-        NHX, NGX = NGX, NHX
-    return NGX, NHX
+    for c in C:
+        # first, split the table NG[i] (where V is from)
+        NGX[i][c] = set()
+        for v in list(NG[i][c]):
+            if v in S:
+                NG[i][c].remove(v)
+                NGX[i][c].add(v)
+        if not len(NG[i][c]):
+            del NG[i][c]
+       
+        # copy/move entries of NGX[j] table 
+        for j in xrange(len(NG)):
+            if j == i:
+                continue
+            if NG[i].has_key(c):
+                NGX[j][c] = set(NG[j][c])
+            else:
+                NGX[j][c] = NG[j].pop(c)
+    return NGX
 
 
 if __name__ == '__main__':
@@ -160,36 +157,32 @@ if __name__ == '__main__':
                     'create a shortest-path graph with max distance ' + \
                     'delta and subsequently identify 1-teams (output' + \
                     ' is identical or normal mode)')
-    parser.add_argument('graph_file1', type=str, 
+    parser.add_argument('graph_file', type=str, nargs='+',
             help='input graph file 1 in GML format')
-    parser.add_argument('graph_file2', type=str, 
-            help='input graph file 2 in GML format')
     
     args = parser.parse_args()
-    
-    G = nx.read_gml(args.graph_file1)
-    H = nx.read_gml(args.graph_file2)
 
-    if G.is_directed():
-        G = G.to_undirected()
-    if H.is_directed():
-        H = H.to_undirected()
+    graphs = list()
+    for f in args.graph_file:
+        G = nx.read_gml(f)
+        if G.is_directed():
+            G = G.to_undirected()
+        if args.simplify:
+            G = toSPGraph(G, args.delta)
+        graphs.append(G)
 
     if args.simplify:
-        G = toSPGraph(G, args.delta)
-        H = toSPGraph(H, args.delta)
-        teams = findDeltaTeams(G, H, 1)
+        teams = findDeltaTeams(graphs, 1)
     else:
-        teams = findDeltaTeams(G, H, args.delta)
+        teams = findDeltaTeams(graphs, args.delta)
 
     if teams:
         out = stdout
-        print >> out, 'common_classes\t%s\t%s'%(args.graph_file1,
-                args.graph_file2)
-        for NG, NH in teams:
-            print >> out, '\t'.join((';'.join(map(str, NG.keys())),
-                ';'.join(map(str, chain(*NG.values()))), ';'.join(map(str,
-                    chain(*NH.values())))))
+        print >> out, 'common_classes\t%s'%('\t'.join(args.graph_file))
+        for NG in teams:
+            print >> out, '\t'.join(chain((';'.join(map(str, \
+                    sorted(NG[0].keys()))),), (';'.join(map(str, \
+                    sorted(chain(*NG.values())))) for NG in NG)))
     else:
         print >> stderr, 'No %s-teams found' %args.delta
 
