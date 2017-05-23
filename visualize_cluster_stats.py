@@ -11,7 +11,7 @@ COLOR3 = [0.694,0.792,0.396]
 COLOR4 = [0.831,0.604,0.416]
 
 def visualize_stats(data, out):
-    f, axs = plt.subplots(2, 2, sharey=False, sharex=True)
+    f, axs = plt.subplots(2, 2, sharey=False, sharex=False)
     
     X = plt.arange(data.shape[0]) 
     width = 0.4
@@ -22,11 +22,11 @@ def visualize_stats(data, out):
     bars3dsize = axs[0][0].bar(X, data[:, 1], width, color=COLOR1)
     bars1dsize = axs[0][0].bar(X+width, data[:, 2], width, color=COLOR2)
     axs[0][0].legend((bars3dsize[0], bars1dsize[0]), ('3D gene clusters', \
-            '1D gene clusters'))
+            '1D gene clusters'), fontsize=title_fontsize)
     axs[0][0].set_xticks(X+width/2)
     axs[0][0].set_xticklabels(map(int, data[:, 0]))
     axs[0][0].set_ylabel('count')
-    axs[0][0].set_xlabel(r'$\delta$')
+#    axs[0][0].set_xlabel(r'$\delta$')
     axs[0][0].set_title('number of discovered clusters', fontsize=title_fontsize)
 
     # average size of detected clusters
@@ -37,27 +37,29 @@ def visualize_stats(data, out):
     axs[0][1].set_xticks(X+width/2)
     axs[0][1].set_xticklabels(map(int, data[:, 0]))
     axs[0][1].set_ylabel('avg. size')
-    axs[0][1].set_xlabel(r'$\delta$')
+#    axs[0][1].set_xlabel(r'$\delta$')
     axs[0][1].set_title('average size of discovered clusters',
             fontsize=title_fontsize)
+    axs[0][1].set_yscale('log')
 
     # nested clusters
-    axs[1][0].bar(X+(width/2), data[:, 5], width, color=COLOR2)
-    axs[1][0].legend(('1D gene clusters', ), fontsize=title_fontsize)
-    axs[1][0].set_xticks(X+width/2)
-    axs[1][0].set_xticklabels(map(int, data[:, 0]))
-    axs[1][0].set_ylabel('count')
-    axs[1][0].set_xlabel(r'$\delta$')
-    axs[1][0].set_title('number of nested 1D clusters', fontsize=title_fontsize)
-
-    # spatial gain 3D clusters
-    axs[1][1].bar(X+(width/2), data[:, 6], width, color=COLOR1)
-    axs[1][1].legend(('3D gene clusters', ), fontsize=title_fontsize)
+    axs[1][1].scatter(X+width/2, data[:, 5]/60, color=COLOR1)
+#    axs[1][0].legend(('1D gene clusters', ), fontsize=title_fontsize)
     axs[1][1].set_xticks(X+width/2)
     axs[1][1].set_xticklabels(map(int, data[:, 0]))
-    axs[1][1].set_ylabel('gain factor')
+    axs[1][1].set_ylabel('time in mins')
     axs[1][1].set_xlabel(r'$\delta$')
-    axs[1][1].set_title('spatial gain of 3D clusters', fontsize=title_fontsize)
+    axs[1][1].set_title('computation time of 3D clusters', fontsize=title_fontsize)
+
+    # spatial gain 3D clusters
+    axs[1][0].bar(X+(width/2), data[:, 6], width, color=COLOR1)
+#    axs[1][1].legend(('3D gene clusters', ), fontsize=title_fontsize)
+    axs[1][0].set_xticks(X+width/2)
+    axs[1][0].set_xticklabels(map(int, data[:, 0]))
+    axs[1][0].set_ylabel('avg. number of gained genes')
+    axs[1][0].set_xlabel(r'$\delta$')
+    axs[1][0].set_title('spatial gain of 3D clusters', fontsize=title_fontsize)
+    axs[1][0].set_yscale('log')
 
     for axsx in axs:
         for axsy in axsx:
