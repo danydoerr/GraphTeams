@@ -44,7 +44,7 @@ rule normalizeMaps:
     output:
         expand('%s/{hic_map}.truncated.dmat' %NORM_HIC_DIR, hic_map=HIC_MAPS_BASE)
     shell:
-        '%s/NormalizerDUMMY.py {input}' %BIN_DIR
+        '%s/Normalizer.py {input}' %BIN_DIR
 
 
 rule skipHeader:
