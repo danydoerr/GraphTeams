@@ -11,7 +11,6 @@ REQUIREMENTS
 
 * PYTHON3 and PYTHON2 (https://www.python.org/)
 * PYTHON2 libraries:
-    - Biopython
     - NetworkX
 * SNAKEMAKE (http://snakemake.bitbucket.org)
 
