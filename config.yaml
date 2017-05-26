@@ -1,14 +1,21 @@
-bin_dir: scripts
 
-hic_data_dir: data/hic_maps
+# PLEASE ADJUST THE FOLLOWING PARAMETERS --------------------------------------
+
 hic_map_resolution: 40000
 hic_file_ending: .txt
+gene_data_file_ending: .txt
+delta: 2, 3, 4, 5, 6, 7
+
+#------------------------------------------------------------------------------
+
+
+# DO NOT ADJUST THE FOLLOWING PARAMETERS (unless you know what you are doing) -
+
+bin_dir: scripts
+hic_data_dir: data/hic_maps
 normalized_data_dir: normalized_hic_maps
 graph_data_dir: graphs
-
 gene_data_dir: data/genomic
-gene_data_file_ending: .txt
 graph_teams_dir: graph_teams
 
-delta: 2, 3, 4, 5, 6, 7
 
