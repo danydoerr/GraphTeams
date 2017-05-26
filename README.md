@@ -28,13 +28,13 @@ TUTORIAL
 
 1. For each organism of your dataset:
     * create folders 
-        - data/hic_maps/<organism name> and 
-        - data/genomic/<organism name>
+        - data/hic_maps/{organism name} and 
+        - data/genomic/{organism name}
     * copy all intra-chromosomal Hi-C maps of the organism into
-      data/hic_maps/<organism name> (note that the suffix of the file names must
+      data/hic_maps/{organism name} (note that the suffix of the file names must
       be as specified in the config.yaml file)
-    * copy Ensemble Data table of the organism into /data/genomic/<organism
-      name> (data from all chromsomes of the organism should be contained in a
+    * copy Ensemble Data table of the organism into /data/genomic/{organism
+      name} (data from all chromsomes of the organism should be contained in a
       single file; note that the suffixe of the file name must be as specificed
       in the config.yaml file)
 
@@ -47,5 +47,5 @@ TUTORIAL
     * adjust the choices of the delta threshold (for more information on this
       parameter, read our soon-to-be published paper);
 
-3. Run 'snakemake --cores <number of cores you want to allocate for running GraphTeams>
+3. Run 'snakemake --cores {number of cores you want to allocate for running GraphTeams}
 4. Identified graph teams will be written to the graph_teams sub-directory
