@@ -11,7 +11,7 @@ argus = parser.parse_args()
 
 mapList = [np.genfromtxt(i, dtype=str) for i in argus.M]
 
-print "Loading done"
+print("Loading done")
 
 #compute the average of all maximum entries of all matrices
 maxInMats = []
@@ -57,7 +57,7 @@ avgMax = maxSum / float(len(maxInMats))
 
 overallMax = max(maxInMats)
 
-print "Begin normalization"
+print("Begin normalization")
 
 #Normalize each map
 for i in range(len(mapList)):
@@ -72,7 +72,7 @@ for i in range(len(mapList)):
 				#store new value in map
 				mapList[i][k][l] = str(c * float(mapList[i][k][l]))
 
-print "Normalisation done"
+print("Normalisation done")
 
 #saving the matrices
 for i in range(len(mapList)):
