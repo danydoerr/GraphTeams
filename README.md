@@ -33,6 +33,9 @@ TUTORIAL
     * copy all intra-chromosomal Hi-C maps of the organism into
       data/hic_maps/{organism name} (note that the suffix of the file names must
       be as specified in the config.yaml file)
+    * file names of Hi-C maps should contain a substring "chrID." where "ID" is
+      the identifier of the chromosome belonging to the map which is also used
+      in the corresponding annotation file
     * copy Ensemble Data table of the organism into /data/genomic/{organism
       name} (data from all chromsomes of the organism should be contained in a
       single file; note that the suffixe of the file name must be as specificed
