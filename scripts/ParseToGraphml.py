@@ -15,18 +15,12 @@ parser.add_argument('H', metavar='HomologyTable', type=str, help="Path to the fi
 parser.add_argument('T', metavar='TargetFile', type=str, help="Path to the file in which the graph sould be written to.")
 parser.add_argument('M', metavar='Hi-C_Map', type=str, nargs='+', help="Path to the file that contains a Hi-C map. Should be a tab separated file consisting of three colums containing the pair of bins and their count.")
 parser.add_argument('-s', '--binSize', default=0, type=int, help="Size of bin of the Hi-C map, i.e. its resolution.")
-parser.add_argument('-o', '--mapOrder', type=str, nargs='+', help="Order of Hi-C maps which are given as parameters.")
 
 arguments = parser.parse_args()
 
 #Check if bin size is set
 if arguments.binSize <= 0:
     print >> sys.stderr, "Bin sizes not or not correctly set."
-    exit(-1)
-
-#Check if the complete order of Hi-C maps is given
-if len(arguments.mapOrder) != 2 * len(arguments.M):
-    print >> sys.stderr, "Order of Hi-C maps not stated stated correctly."
     exit(-1)
 
 #Write the header
@@ -104,6 +98,11 @@ contCounts = {}
 for i in range(len(maps)):
     mFile = open(maps[i], "r")
 
+    #find out which chromosome we are dealing with
+    mapName = maps[i].split('/')[-1]
+
+    chrom = mapName.split('chr')[1].split('.')[0]
+
     #a counter for save the number of lines already read in (because this is the bin number)
     l = 0
 
@@ -121,10 +120,10 @@ for i in range(len(maps)):
         cell.pop()
 
         #first chromosome the current map belongs to
-        fChr = arguments.mapOrder[2*i]
+        fChr = chrom
 
         #second chromosome the current map belongs to
-        sChr = arguments.mapOrder[2*i + 1]
+        sChr = chrom
  
         #sum up all entries of this line
         overallContacts = 0
@@ -171,6 +170,11 @@ for i in range(len(maps)):
 for i in range(len(arguments.M)):
     mFile = open(arguments.M[i], "r")
 
+    #find out which chromosome we are dealing with
+    mapName = maps[i].split('/')[-1]
+
+    chrom = mapName.split('chr')[1].split('.')[0]
+
     #counter for lines that are already read in to determine the current bin
     lCounter = 0
 
@@ -187,9 +191,9 @@ for i in range(len(arguments.M)):
                 genes = geneBins[str(j + 1)]
 
                 for k in range(len(genes)):
-                    if genes[k][0] == arguments.mapOrder[2 * i]:
+                    if genes[k][0] == chrom:
                         for l in range(len(genes)):
-                            if k < l and genes[l][0] == arguments.mapOrder[(2 * i + 1)]:
+                            if k < l and genes[l][0] == chrom:
 
                                 #calculate distance of 1bp
                                 dbp = float(cols[j]) / float(arguments.binSize)
@@ -202,10 +206,10 @@ for i in range(len(arguments.M)):
             #entries below the main diagonal are redundant
             if lCounter - 1 < j and str(j + 1) in geneBins:
                 for gene in geneBins[str(j + 1)]:
-                    if gene[0] == arguments.mapOrder[2 * i]:
+                    if gene[0] == chrom:
                         if str(lCounter) in geneBins:
                             for ogene in geneBins[str(lCounter)]:
-                                if ogene[0] == arguments.mapOrder[(2 * i + 1)] and j < len(cols) and cols[j] != "NULL" and float(cols[j]) > 0:
+                                if ogene[0] == chrom and j < len(cols) and cols[j] != "NULL" and float(cols[j]) > 0:
 
                                     w = float(cols[j])
 
@@ -213,14 +217,14 @@ for i in range(len(arguments.M)):
 
                                     eC += 1
 
-                                if ogene[0] == arguments.mapOrder[(2 * i + 1)] and j < len(cols) and cols[j] == "NULL" and lCounter == j:
+                                if ogene[0] == chrom and j < len(cols) and cols[j] == "NULL" and lCounter == j:
                                     dbp = float(cols[j-1]) / float(arguments.binSize)
                                     w = dbp * (abs(gene[2] - ogene[2]))
 
                                     oFile.write(cEdge(eC, gene[1], ogene[1], w))
 
                                     eC += 1
-                                if ogene[0] == arguments.mapOrder[(2 * i + 1)] and j < len(cols) and cols[j] != "NULL" and float(cols[j]) == 0 and lCounter == j:
+                                if ogene[0] == chrom and j < len(cols) and cols[j] != "NULL" and float(cols[j]) == 0 and lCounter == j:
                                     dbp = float(cols[j-1]) / float(arguments.binSize)
                                     w = dbp * (abs(gene[2] - ogene[2]))
 
