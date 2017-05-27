@@ -117,7 +117,7 @@ for chrom in geneDict:
 
 			#could it happen that a gene appears in reversed orientation?
 			if midlGene < 1 or midGene < 1:
-				print "Wrong orientation"
+				print("Wrong orientation")
 
 			#calculate to which bins the genes belong to
 			lGeneBin = lGene[1] / int(arguments.binSize)
