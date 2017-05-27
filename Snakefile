@@ -68,7 +68,7 @@ rule makeAnnotationFile:
 
 rule makeHomologyTable:
     input:
-        map(lambda x: '%s.annotation' %x.rsplit('.', 1)[0], HOMOLOGY_MAPS)
+        map(lambda x: '%s.noheader' %x.rsplit('.', 1)[0], HOMOLOGY_MAPS)
     output:
         '%s/homology_%s.csv' %(GENE_DATA_DIR, ORG_SHORT)
     shell:
