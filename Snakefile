@@ -75,14 +75,11 @@ rule makeHomologyTable:
         '%s/MakeHomList.py {input} {output}.tmp;' %BIN_DIR + 
         'sort {output}.tmp | uniq > {output};'
 
-
 rule buildGraphs:
     input:
-        hic_dmat = expand('%s/{{organism}}/{hic_map}.dmat' %NORM_HIC_DIR,
-                hic_map=(x for x in HIC_MAPS_BASE if x.split('/', 1)[0] ==
-                '{{organism}}')),
-        annotation_file = ['%s.annotation' %x.rsplit('.', 1)[0] for x in
-                HOMOLOGY_MAPS if x.split('/', 2)[1] == '{{organism}}'],
+        hic_dmat = lambda wildcards: expand('%s/{hic_map}.truncated.dmat' %(NORM_HIC_DIR), hic_map=(x for x in HIC_MAPS_BASE if x.split('/', 1)[0] == wildcards.organism)),
+        annotation_file = lambda wildcards: ['%s.annotation' %x.rsplit('.', 1)[0] for x in
+                HOMOLOGY_MAPS if x.split('/', 2)[1] == wildcards.organism],
         homology_table = '%s/homology_%s.csv' %(GENE_DATA_DIR, ORG_SHORT)
     params:
         bin_size = config['hic_map_resolution']
