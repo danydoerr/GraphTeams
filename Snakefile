@@ -86,6 +86,7 @@ rule buildGraphs:
     output:
         '%s/{organism}.ml' %(GRAPH_DATA_DIR)
     shell:
+        'mkdir -p %s;' %GRAPH_DATA_DIR + 
         '%s/ParseToGraphml.py -s {params.bin_size} ' %BIN_DIR +
         '{input.annotation_file} {input.homology_table} {output} '
         '{input.hic_dmat}'
