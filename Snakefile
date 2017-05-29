@@ -61,9 +61,11 @@ rule makeAnnotationFile:
     input:
         '%s/{organism}/{gene_data}.noheader' %GENE_DATA_DIR
     output:
-        '%s/{organism}/{gene_data}.annotation' %GENE_DATA_DIR
+        ann = '%s/{organism}/{gene_data}.annotation' %GENE_DATA_DIR,
+	tmp = temp('%s/{organism}/{gene_data}.annotation.tmp' %GENE_DATA_DIR)
     shell:
-        '%s/AnFileMaker.py {input} {output}' %BIN_DIR
+        '%s/AnFileMaker.py {input} {output.tmp};' %BIN_DIR +
+	'sort {output.tmp} | uniq > {output.ann}'
 
 
 rule makeHomologyTable:
