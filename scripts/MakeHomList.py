@@ -2,7 +2,7 @@
 
 import sys
 
-mfile = open(sys.argv[1], "r")
+mfile = open(sys.argv[2], "r")
 
 homList = []
 
@@ -13,7 +13,7 @@ for line in mfile:
 
 mfile.close()
 
-hfile = open(sys.argv[2], "r")
+hfile = open(sys.argv[1], "r")
 
 humanGeneDict = {}
 
