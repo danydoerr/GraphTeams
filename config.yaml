@@ -16,6 +16,6 @@ hic_data_dir: data/hic_maps
 normalized_data_dir: normalized_hic_maps
 graph_data_dir: graphs
 gene_data_dir: data/genomic
-graph_teams_dir: graph_teams
+graph_teams_dir: teams
 
 
