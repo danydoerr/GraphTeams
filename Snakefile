@@ -70,10 +70,11 @@ rule makeHomologyTable:
     input:
         map(lambda x: '%s.noheader' %x.rsplit('.', 1)[0], HOMOLOGY_MAPS)
     output:
-        '%s/homology_%s.csv' %(GENE_DATA_DIR, ORG_SHORT)
+        table = '%s/homology_%s.csv' %(GENE_DATA_DIR, ORG_SHORT),
+        tmp = temp('%s/homology_%s.csv.tmp' %(GENE_DATA_DIR, ORG_SHORT))
     shell:
-        '%s/MakeHomList.py {input} {output}.tmp;' %BIN_DIR + 
-        'sort {output}.tmp | uniq > {output};'
+        '%s/MakeHomList.py {input} {output.tmp};' %BIN_DIR + 
+        'sort {output.tmp} | uniq > {output.table};'
 
 
 rule buildGraphs:
