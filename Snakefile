@@ -15,19 +15,23 @@ HIC_MAPS_BASE = sorted(map(lambda y: join(*(y.split('/')[
         ORGANISMS))))
 NORM_HIC_DIR = config['normalized_data_dir']
 GRAPH_DATA_DIR = config['graph_data_dir']
+SEQ_GRAPH_DATA_DIR = config['graph_data_dir'] + '_seq'
 
 GENE_DATA_DIR = config['gene_data_dir']
 HOMOLOGY_MAPS = sorted(glob('%s/%s/*%s' %(GENE_DATA_DIR, x,
         config['gene_data_file_ending']))[0] for x in ORGANISMS)
 
 TEAMS_DIR = config['graph_teams_dir']
+SEQ_TEAMS_DIR = config['graph_teams_dir'] + '_seq'
 DELTA = config['delta']
 
 rule all: 
     input:
-        #expand('%s/{hic_map}.mod.dmat' %NORM_HIC_DIR, hic_map=HIC_MAPS_BASE)
         expand('%s/%s_d{delta}.csv' %(TEAMS_DIR, ORG_SHORT), delta=DELTA)
 
+rule all_sequential: 
+    input:
+        expand('%s/%s_d{delta}.csv' %(SEQ_TEAMS_DIR, ORG_SHORT), delta=DELTA)
 
 rule cutMaps:
     input:
@@ -91,7 +95,7 @@ rule buildGraphs:
         '%s/{organism}.ml' %(GRAPH_DATA_DIR)
     shell:
         'mkdir -p %s;' %GRAPH_DATA_DIR + 
-        'python2 %s/ParseToGraphml.py -s {params.bin_size} ' %BIN_DIR +
+        '%s/ParseToGraphml.py -s {params.bin_size} ' %BIN_DIR +
         '{input.annotation_file} {input.homology_table} {output} '
         '{input.hic_dmat}'
 
@@ -104,3 +108,31 @@ rule findTeams:
     shell:
         'mkdir -p %s;' %TEAMS_DIR + 
         '%s/graph_teams.py -d {wildcards.delta} {input} > {output}' %BIN_DIR
+
+
+rule buildSequentialGraphs:
+    input:
+        hic_dmat = lambda wildcards: expand('%s/{hic_map}.truncated.dmat' %(NORM_HIC_DIR), hic_map=(x for x in HIC_MAPS_BASE if x.split('/', 1)[0] == wildcards.organism)),
+        annotation_file = lambda wildcards: ['%s.annotation' %x.rsplit('.', 1)[0] for x in
+                HOMOLOGY_MAPS if x.rsplit('/', 2)[-2] == wildcards.organism],
+        homology_table = '%s/homology_%s.csv' %(GENE_DATA_DIR, ORG_SHORT)
+    params:
+        bin_size = config['hic_map_resolution']
+    output:
+        '%s/{organism}.ml' %(SEQ_GRAPH_DATA_DIR)
+    shell:
+        'mkdir -p %s;' %SEQ_GRAPH_DATA_DIR + 
+        '%s/SeqGraphMaker.py -s {params.bin_size} ' %BIN_DIR +
+        '{input.annotation_file} {input.homology_table} {output} '
+        '{input.hic_dmat}'
+
+
+rule findStringTeams:
+    input:
+        graph=expand('%s/{organism}.ml' %SEQ_GRAPH_DATA_DIR, organism=ORGANISMS)
+    output:
+        '%s/%s_d{delta}.csv' %(SEQ_TEAMS_DIR, ORG_SHORT)
+    shell:
+        'mkdir -p %s;' %SEQ_TEAMS_DIR + 
+        '%s/graph_teams.py -d {wildcards.delta} {input} > {output}' %BIN_DIR
+
