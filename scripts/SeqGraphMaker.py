@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python
 
 import sys
 import argparse as args
@@ -11,23 +11,17 @@ def cEdge(iD, orig, dest, w):
 #Setting up the argument parser
 
 parser = args.ArgumentParser(description="Creates a file in graphml format for the gene teams algorithm")
+parser.add_argument('S', metavar='Binsize', default=0, type=int, help="Size of bin of the Hi-C map, i.e. its resolution.")
 parser.add_argument('A', metavar='AnnotationFile', type=str, help="Path to the file that contains all gene annotations. Should be in gff3 format")
 parser.add_argument('H', metavar='HomologyTable', type=str, help="Path to the file that contains names of homologous genes of a gene family. Should be a tab separated file in which each line is a gene family and each column contains the names of homologous genes of a species.")
 parser.add_argument('T', metavar='TargetFile', type=str, help="Path to the file in which the graph sould be written to.")
 parser.add_argument('M', metavar='Hi-C_Map', type=str, nargs='+', help="Path to the file that contains a Hi-C map. Should be a tab separated file consisting of three colums containing the pair of bins and their count.")
-parser.add_argument('-s', '--binSize', default=0, type=int, help="Size of bin of the Hi-C map, i.e. its resolution.")
-parser.add_argument('-o', '--mapOrder', type=str, nargs='+', help="Order of Hi-C maps which are given as parameters.")
 
 arguments = parser.parse_args()
 
 #Check if bin size is set
-if arguments.binSize <= 0:
+if arguments.S <= 0:
 	print >> sys.stderr, "Bin sizes not or not correctly set."
-	exit(-1)
-
-#Check if the complete order of Hi-C maps is given
-if len(arguments.mapOrder) != len(arguments.M):
-	print >> sys.stderr, "Order of Hi-C maps not stated stated correctly."
 	exit(-1)
 
 #Write the header
@@ -56,8 +50,13 @@ hFile.close()
 #Dictionary that stores the different maps
 hiCMaps = {}
 
-for i in range(len(arguments.mapOrder)):
-	hiCMaps[arguments.mapOrder[i]] = np.genfromtxt(arguments.M[i], dtype=str)
+for mAp in arguments.M:
+	#find out which chromosome we are dealing with
+	mapName = mAp.split('/')[-1]
+
+	chrId = mapName.split('chr')[1].split('.')[0]
+
+	hiCMaps[chrId] = np.genfromtxt(mAp, dtype=str)
 
 #Counter for unique node and edge ids
 nC = 0
@@ -117,24 +116,24 @@ for chrom in geneDict:
 
 			#could it happen that a gene appears in reversed orientation?
 			if midlGene < 1 or midGene < 1:
-				print("Wrong orientation")
+				print "Wrong orientation"
 
 			#calculate to which bins the genes belong to
-			lGeneBin = lGene[1] / int(arguments.binSize)
-			geneBin = gene[1] / int(arguments.binSize)
+			lGeneBin = lGene[1] / int(arguments.S)
+			geneBin = gene[1] / int(arguments.S)
 
 			#calculate the weight of the new edge and add it to the graph
 			deltaBp = abs(midGene - midlGene)
 
 			#find out where we have to look up the distance in the matrices
 			if lGeneBin != geneBin and geneBin < len(hiCMaps[chrom]) and hiCMaps[chrom][lGeneBin][geneBin] != "NULL" and float(hiCMaps[chrom][lGeneBin][geneBin]) > 0:
-				#w = float(deltaBp) * float(hiCMaps[chrom][lGeneBin][geneBin]) / float(arguments.binSize)
+				#w = float(deltaBp) * float(hiCMaps[chrom][lGeneBin][geneBin]) / float(arguments.S)
 				w = float(hiCMaps[chrom][lGeneBin][geneBin])
 
 				oFile.write(cEdge(eC, lGene[0], gene[0], w))
 				eC += 1
 			elif geneBin < len(hiCMaps[chrom]):
-				w = float(deltaBp) * float(hiCMaps[chrom][lGeneBin][lGeneBin]) / float(arguments.binSize)
+				w = float(deltaBp) * float(hiCMaps[chrom][lGeneBin][lGeneBin]) / float(arguments.S)
 
 				oFile.write(cEdge(eC, lGene[0], gene[0], w))
 				eC += 1
