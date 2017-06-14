@@ -105,6 +105,8 @@ rule findTeams:
         graph=expand('%s/{organism}.ml' %GRAPH_DATA_DIR, organism=ORGANISMS)
     output:
         '%s/%s_d{delta}.csv' %(TEAMS_DIR, ORG_SHORT)
+    benchmark:
+        'benchmarks/teams_spatial_d{delta}.txt'
     shell:
         'mkdir -p %s;' %TEAMS_DIR + 
         '%s/graph_teams.py -d {wildcards.delta} {input} > {output}' %BIN_DIR
@@ -122,7 +124,7 @@ rule buildSequentialGraphs:
         '%s/{organism}.ml' %(SEQ_GRAPH_DATA_DIR)
     shell:
         'mkdir -p %s;' %SEQ_GRAPH_DATA_DIR + 
-        '%s/SeqGraphMaker.py -s {params.bin_size} ' %BIN_DIR +
+        '%s/SeqGraphMaker.py {params.bin_size} ' %BIN_DIR +
         '{input.annotation_file} {input.homology_table} {output} '
         '{input.hic_dmat}'
 
@@ -132,7 +134,30 @@ rule findStringTeams:
         graph=expand('%s/{organism}.ml' %SEQ_GRAPH_DATA_DIR, organism=ORGANISMS)
     output:
         '%s/%s_d{delta}.csv' %(SEQ_TEAMS_DIR, ORG_SHORT)
+    benchmark:
+        'benchmarks/teams_seq_d{delta}.txt'
     shell:
         'mkdir -p %s;' %SEQ_TEAMS_DIR + 
         '%s/graph_teams.py -d {wildcards.delta} {input} > {output}' %BIN_DIR
 
+rule make_stats_file:
+    input:
+        spatial_teams = expand('%s/%s_d{delta}.csv' %(TEAMS_DIR, ORG_SHORT),
+        delta=DELTA),
+        seq_teams = expand('%s/%s_d{delta}.csv' %(SEQ_TEAMS_DIR, ORG_SHORT),
+        delta=DELTA),
+        bench = expand('benchmarks/teams_spatial_d{delta}.txt', delta=DELTA)
+    output:
+        '%s_stats.csv' %ORG_SHORT
+    shell:
+        'for i in %s; do ' %(' '.join(map(str, DELTA))) + 
+        '   %s/ClusterEvaluator.py -d$i %s/%s_d$i.csv %s/%s_d$i.csv benchmarks/teams_spatial_d$i.txt;' %(BIN_DIR, TEAMS_DIR, ORG_SHORT, SEQ_TEAMS_DIR, ORG_SHORT) + 
+        'done > {output}'
+
+rule visualize_stats:
+    input:
+        '%s_stats.csv' %ORG_SHORT
+    output:
+        '%s_stats.pdf' %ORG_SHORT
+    shell:
+        '%s/visualize_cluster_stats.py {input} > {output}' %BIN_DIR
