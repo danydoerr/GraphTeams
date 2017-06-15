@@ -43,7 +43,7 @@ def visualize_stats(data, out):
     axs[0][1].set_yscale('log')
 
     # nested clusters
-    axs[1][1].scatter(X+width/2, data[:, 5]/60, color=COLOR1)
+    axs[1][1].scatter(X+width/2, data[:, 5], color=COLOR1)
 #    axs[1][0].legend(('1D gene clusters', ), fontsize=title_fontsize)
     axs[1][1].set_xticks(X+width/2)
     axs[1][1].set_xticklabels(map(int, data[:, 0]))
