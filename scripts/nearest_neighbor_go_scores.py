@@ -256,6 +256,7 @@ def printClusterDistances(t, links, levels, nn_genome, cluster_data, genesChr,
         nn_cluster = nearestNeighborDist(t, links, levels, genes)
        
         score = float('inf')
+        p = SAMPLE_POOL
         
         if len(nn_cluster) > 1:
             chro = next(iter(reduce(lambda x,y: x.intersection(genes2chr[y]),
