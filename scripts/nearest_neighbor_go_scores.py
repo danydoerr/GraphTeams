@@ -4,6 +4,7 @@ from sys import stdout, stderr, exit
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter as ADHF
 from os.path import basename
 from itertools import chain, combinations
+from cStringIO import StringIO
 import logging
 import csv
 
@@ -172,6 +173,9 @@ def nearestNeighborDist(t, links, levels, genes):
                     levelLists[l] = set()
                 levelLists[l].add(rep)
                 pushLists[rep] = {rep.label:l}
+
+    if not levelLists:
+        return levelLists
    
     mx_level = max(levelLists.keys())
     levelLists = [levelLists.get(l, set()) for l in xrange(mx_level+1)]
@@ -204,12 +208,14 @@ def nearestNeighborDist(t, links, levels, genes):
     return res
 
 
-def printClusterDistances(t, links, levels, nn_genome, cluster_data):
+def printClusterDistances(t, links, levels, nn_genome, cluster_data, out):
     for line in csv.reader(cluster_data, delimiter='\t'):
         genes = set(filter(lambda x: links.has_key(x), line[0].split(';')))
         nn_cluster = nearestNeighborDist(t, links, levels, genes)
-        print '%s\t%s' %(line[0], sum(nn_cluster[g]-nn_genome[g] for g in
-            genes))  
+        if len(nn_cluster) > 2:
+            print >> out, '%s\t%s\t%s' %(line[0], len(nn_cluster), not
+                    nn_cluster and float('inf') or \
+                    sum(nn_cluster[g]-nn_genome[g] for g in genes))
         
 
 if __name__ == '__main__':
@@ -256,4 +262,5 @@ if __name__ == '__main__':
 
     LOG.info('nearest neighbor analysis over all annotated genes')
     nearest_gene_dists = nearestNeighborDist(t, links, levels, genes)
-
+    printClusterDistances(t, links, levels, nearest_gene_dists,
+            open(args.cluster_file), stdout)
