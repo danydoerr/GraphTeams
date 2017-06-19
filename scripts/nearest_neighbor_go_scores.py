@@ -1,10 +1,10 @@
 #!/usr/bin/env python2
 
-from sys import stdout, stderr, exit
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter as ADHF
-from os.path import basename
 from itertools import chain, combinations
+from sys import stdout, stderr, exit
 from cStringIO import StringIO
+from os.path import basename
 import logging
 import csv
 
