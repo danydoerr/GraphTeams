@@ -89,9 +89,12 @@ rule makeHomologyTable:
 
 rule buildGraphs:
     input:
-        hic_dmat = lambda wildcards: expand('%s/{hic_map}.truncated.dmat' %(NORM_HIC_DIR), hic_map=(x for x in HIC_MAPS_BASE if x.split('/', 1)[0] == wildcards.organism)),
-        annotation_file = lambda wildcards: ['%s.annotation' %x.rsplit('.', 1)[0] for x in
-                HOMOLOGY_MAPS if x.rsplit('/', 2)[-2] == wildcards.organism],
+        hic_dmat = lambda wildcards: expand('%s/{hic_map}.truncated.dmat' %(NORM_HIC_DIR), 
+                hic_map=(x for x in HIC_MAPS_BASE if x.split('/', 1)[0] ==
+                wildcards.organism)),
+        annotation_file = lambda wildcards: ['%s.annotation' %x.rsplit('.',
+                1)[0] for x in HOMOLOGY_MAPS if x.startswith('%s/%s' %(GENE_DATA_DIR, 
+                wildcards.organism))],
         homology_table = '%s/homology_%s.csv' %(GENE_DATA_DIR, ORG_SHORT)
     params:
         bin_size = config['hic_map_resolution']
@@ -168,13 +171,13 @@ rule visualize_cluster_stats:
     shell:
         '%s/visualize_cluster_stats.py {input} > {output}' %BIN_DIR
 
-
 rule go_neighbor_cluster_scores:
     input:
         obo = GO_OBO_FILE,
         assoc = GO_ASSOC_DATA,
-        annot = '%s/%s/{gene_data}.annotation' %(GENE_DATA_DIR,
-                config['go_reference_species'])
+        annot = ['%s.annotation' %x.rsplit('.', 1)[0] for x in HOMOLOGY_MAPS if
+                x.startswith('%s/%s' %(GENE_DATA_DIR,
+                config['go_reference_species']))],
         teams = '{teams_dir}/%s_d{delta}.csv' %ORG_SHORT
     output:
         '%s/{teams_dir}/%s_d{delta}.csv' %(NN_ANALYSIS_DIR,
@@ -186,6 +189,7 @@ rule go_neighbor_cluster_scores:
 
 rule go_analysis:
     input:
-        expand('%s/{teams_dir}/%s_d{delta}.csv' %(NN_ANALYSIS_DIR, ORG_SHORT),
+        expand('%s/{teams_dir}/%s_d{delta}.csv' %(NN_ANALYSIS_DIR,
+                config['go_reference_species']),
                 teams_dir=(TEAMS_DIR, SEQ_TEAMS_DIR), delta=DELTA)
         
