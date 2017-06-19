@@ -197,9 +197,9 @@ rule go_analysis:
         '%s_go_score_stats.csv' %ORG_SHORT
     shell:
         'for d in %s; do' %' '.join(map(str, DELTA)) + 
-        '   n=$(wc -l %s/%s/%s_d$d.csv); '%(NN_ANALYSIS_DIR, TEAMS_DIR, config['go_reference_species']) +
-        '   m=$(wc -l %s/%s/%s_d$d.csv); '%(NN_ANALYSIS_DIR, SEQ_TEAMS_DIR, config['go_reference_species']) +
-        '   i=$(awk "{{sum += \$3}} END {{print sum/$n}}" %s/%s/%s_d$d.csv); ' %(NN_ANALYSIS_DIR, TEAMS_DIR, config['go_reference_species']) +
-        '   j=$(awk "{{sum += \$3}} END {{print sum/$m}}" %s/%s/%s_d$d.csv); ' %(NN_ANALYSIS_DIR, SEQ_TEAMS_DIR, config['go_reference_species']) +
+        '   n=$(wc -l %s/%s/%s_d$d.csv| cut -f1 -d\ ); '%(NN_ANALYSIS_DIR, TEAMS_DIR, config['go_reference_species']) +
+        '   m=$(wc -l %s/%s/%s_d$d.csv| cut -f1 -d\ ); '%(NN_ANALYSIS_DIR, SEQ_TEAMS_DIR, config['go_reference_species']) +
+        '   i=$(awk "{{sum += \$3/\$2}} END {{print sum/$n}}" %s/%s/%s_d$d.csv); ' %(NN_ANALYSIS_DIR, TEAMS_DIR, config['go_reference_species']) +
+        '   j=$(awk "{{sum += \$3/\$2}} END {{print sum/$m}}" %s/%s/%s_d$d.csv); ' %(NN_ANALYSIS_DIR, SEQ_TEAMS_DIR, config['go_reference_species']) +
         '   echo -e "$d\t$i\t$j";'
         'done > {output}'
