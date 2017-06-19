@@ -2,9 +2,11 @@
 
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter as ADHF
 from itertools import chain, combinations
+from bisect import bisect
 from sys import stdout, stderr, exit
 from cStringIO import StringIO
 from os.path import basename
+from random import sample
 import logging
 import csv
 
@@ -14,6 +16,8 @@ LOG = logging.getLogger(__name__)
 LOG.setLevel(logging.DEBUG)
 
 ROOT_NODE = 'GO:0008150'
+
+SAMPLE_POOL = 1000000
 
 def readAssociations(data):
     """ read GO gene association (*.gaf) files """
@@ -86,12 +90,17 @@ def getAllRootPaths(goId, goData):
         for path in paths:
             res.append([goId] + path)
     return res
+
+
 def readGenes(data):
     """ read genes from annotation file """
-    genes = set()
+    genes = dict()
+    
     for line in csv.reader(data, delimiter='\t'):
-        genes.add(line[3])
-
+        if not genes.has_key(line[0]):
+            genes[line[0]] = set()
+        genes[line[0]].add(line[3])
+        
     return genes
 
 def constructLevelMap(goTree):
@@ -223,15 +232,50 @@ def nearestNeighborDist(t, links, levels, genes):
     return res
 
 
-def printClusterDistances(t, links, levels, nn_genome, cluster_data, out):
+def printClusterDistances(t, links, levels, nn_genome, cluster_data, genesChr,
+        out):
     """ output GO nearest-neighbor distance offset for each gene cluster """
+
+    genes2chr = dict()
+
+    for chro, genes in genesChr.items():
+        new_genes = set()
+        for gene in genes:
+            if links.has_key(gene):
+                if not genes2chr.has_key(gene):
+                    genes2chr[gene] = set()
+                genes2chr[gene].add(chro)
+                new_genes.add(gene)
+        genesChr[chro] = new_genes
+
+    sampled_data = dict()
+    chrs = set(genesChr.keys())
+
     for line in csv.reader(cluster_data, delimiter='\t'):
         genes = set(filter(lambda x: links.has_key(x), line[0].split(';')))
         nn_cluster = nearestNeighborDist(t, links, levels, genes)
-        if len(nn_cluster) > 2:
-            print >> out, '%s\t%s\t%s' %(line[0], len(nn_cluster), not
-                    nn_cluster and float('inf') or \
-                    sum(nn_cluster[g]-nn_genome[g] for g in genes))
+       
+        score = float('inf')
+        
+        if len(nn_cluster) > 1:
+            chro = next(iter(reduce(lambda x,y: x.intersection(genes2chr[y]),
+                    nn_cluster.keys(), chrs)))
+            k = (chro, len(nn_cluster))
+            if not sampled_data.has_key(k):
+                LOG.info('sampling %s clusters of size %s from chromosome %s..' %(SAMPLE_POOL, len(nn_cluster), chro))
+                sampled_data[k] = list()
+                for _ in xrange(SAMPLE_POOL):
+                    sg = sample(genesChr[chro], len(nn_cluster))
+                    sgc = nearestNeighborDist(t, links, levels, sg)
+                    sampled_data[k].append(sum(sgc[g]-nn_genome[g] for g in sg))
+                sampled_data[k].sort()
+                LOG.info('done')
+
+            score = sum(nn_cluster[g]-nn_genome[g] for g in genes)
+            p = bisect(sampled_data[k], score)
+
+        print >> out, '%s\t%s\t%s\t%s' %(line[0], len(nn_cluster), score,
+                float(p)/SAMPLE_POOL)
         
 
 if __name__ == '__main__':
@@ -259,12 +303,16 @@ if __name__ == '__main__':
     LOG.addHandler(cf)
     LOG.addHandler(ch)
 
+
+    # main 
     LOG.info('loading GO OBO file')
     goData = readGO(open(args.go_obo_file))
     LOG.info('loading GO associations')
     assoData = readAssociations(open(args.go_associations))
     LOG.info('laoding gene annotations')
-    genes = readGenes(open(args.genome_annotations))
+    genesChr = readGenes(open(args.genome_annotations))
+    genes = set(chain(*genesChr.values()))
+    
 
     pathDict = {gene: list(chain(*[map(tuple, getAllRootPaths(rep, goData)) for
         rep in reps])) for gene, reps in assoData.items() if gene in genes}
@@ -279,4 +327,4 @@ if __name__ == '__main__':
     LOG.info('nearest neighbor analysis over all annotated genes')
     nearest_gene_dists = nearestNeighborDist(t, links, levels, genes)
     printClusterDistances(t, links, levels, nearest_gene_dists,
-            open(args.cluster_file), stdout)
+            open(args.cluster_file), genesChr, stdout)
