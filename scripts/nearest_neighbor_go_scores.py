@@ -1,7 +1,7 @@
 #!/usr/bin/env python2
 
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter as ADHF
-from itertools import chain, combinations
+from itertools import chain, combinations, imap
 from bisect import bisect
 from sys import stdout, stderr, exit
 from cStringIO import StringIO
@@ -17,7 +17,9 @@ LOG.setLevel(logging.DEBUG)
 
 ROOT_NODE = 'GO:0008150'
 
-SAMPLE_POOL = 1000000
+SAMPLE_POOL = 100000
+
+CUTOFF = 15
 
 def readAssociations(data):
     """ read GO gene association (*.gaf) files """
@@ -164,9 +166,9 @@ def constructGOTree(pathDict):
     links = dict()
     for gene, reps in pathDict.items():
         gl = list()
-        for rep in reps:
+        for pLeaf in set(map(lambda x: x[0], reps)):
             l = Leaf(gene)
-            parent = leafMapping[rep[0]]
+            parent = leafMapping[pLeaf]
             parent.subtrees.append(l)
             l.setAncestor(parent)
             gl.append(l)
@@ -251,18 +253,23 @@ def printClusterDistances(t, links, levels, nn_genome, cluster_data, genesChr,
     sampled_data = dict()
     chrs = set(genesChr.keys())
 
+    isHeader = True
     for line in csv.reader(cluster_data, delimiter='\t'):
+        if isHeader:
+            isHeader = False
+            continue
+
         genes = set(filter(lambda x: links.has_key(x), line[0].split(';')))
         nn_cluster = nearestNeighborDist(t, links, levels, genes)
        
         score = float('inf')
-        p = SAMPLE_POOL
+        p = 1
         
         if len(nn_cluster) > 1:
             chro = next(iter(reduce(lambda x,y: x.intersection(genes2chr[y]),
                     nn_cluster.keys(), chrs)))
             k = (chro, len(nn_cluster))
-            if not sampled_data.has_key(k):
+            if len(nn_cluster) <= CUTOFF and not sampled_data.has_key(k):
                 LOG.info('sampling %s clusters of size %s from chromosome %s..' %(SAMPLE_POOL, len(nn_cluster), chro))
                 sampled_data[k] = list()
                 for _ in xrange(SAMPLE_POOL):
@@ -271,12 +278,12 @@ def printClusterDistances(t, links, levels, nn_genome, cluster_data, genesChr,
                     sampled_data[k].append(sum(sgc[g]-nn_genome[g] for g in sg))
                 sampled_data[k].sort()
                 LOG.info('done')
+                score = sum(nn_cluster[g]-nn_genome[g] for g in genes)
+                p = float(bisect(sampled_data[k], score))/SAMPLE_POOL
+            else:
+                p = -1
 
-            score = sum(nn_cluster[g]-nn_genome[g] for g in genes)
-            p = bisect(sampled_data[k], score)
-
-        print >> out, '%s\t%s\t%s\t%s' %(line[0], len(nn_cluster), score,
-                float(p)/SAMPLE_POOL)
+        print >> out, '%s\t%s\t%s\t%s' %(line[0], len(nn_cluster), score, p)
         
 
 if __name__ == '__main__':
