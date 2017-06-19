@@ -194,7 +194,7 @@ rule go_analysis:
                 config['go_reference_species']),
                 teams_dir=(TEAMS_DIR, SEQ_TEAMS_DIR), delta=DELTA)
     output:
-        '%s_go_score_stats.csv' %ORG_SHORT
+        '%s_go_score_stats.csv' %config['go_reference_species']
     shell:
         'for d in %s; do' %' '.join(map(str, DELTA)) + 
         '   n=$(wc -l %s/%s/%s_d$d.csv| cut -f1 -d\ ); '%(NN_ANALYSIS_DIR, TEAMS_DIR, config['go_reference_species']) +
