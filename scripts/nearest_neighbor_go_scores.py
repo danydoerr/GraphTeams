@@ -110,8 +110,9 @@ def constructLevelMap(goTree):
 
 
 def constructGOTree(pathDict):
-    """ construct GO hierarchy """
-    # return tree and links from each gene to its leaf representations
+    """ construct GO hierarchy and links from paths of genes that go from their
+    leaf representations to the root""" 
+
     jpaths = list(set(chain(*pathDict.values())))
     max_l = max(map(len, jpaths))
     pNodes = [None] * len(jpaths)
@@ -170,27 +171,31 @@ def nearestNeighborDist(t, links, levels, genes):
 
     res = {gene:float('inf') for gene in genes}
 
-    levelLists = dict()
-    pushLists = dict()
 
+    # sort initial genes into disjoint sets, one for each level; create data
+    # structure pushMaps that allows to push elements from bottom to top
+    pushMaps = dict()
+    levelSets = dict()
     for gene in genes:
         if links.has_key(gene):
             for rep in links[gene]:
                 l = levels[rep] 
-                if not levelLists.has_key(l):
-                    levelLists[l] = set()
-                levelLists[l].add(rep)
-                pushLists[rep] = {rep.label:l}
+                if not levelSets.has_key(l):
+                    levelSets[l] = set()
+                levelSets[l].add(rep)
+                pushMaps[rep] = {rep.label:l}
 
-    if not levelLists:
-        return levelLists
+    if not levelSets:
+        return levelSets
    
-    mx_level = max(levelLists.keys())
-    levelLists = [levelLists.get(l, set()) for l in xrange(mx_level+1)]
+    mx_level = max(levelSets.keys())
+    levelSets = [levelSets.get(l, set()) for l in xrange(mx_level+1)]
 
+    # iterate through each level and process elements associated with nodes of
+    # the tree, that are successively pushed from bottom to top
     for l in xrange(mx_level, -1, -1):
-        for node in levelLists[l]:
-            elems = pushLists[node]
+        for node in levelSets[l]:
+            elems = pushMaps[node]
             if len(elems) < 2:
                 # if only one element is present, it is by definition the
                 # push-up represenative
@@ -203,16 +208,18 @@ def nearestNeighborDist(t, links, levels, genes):
                 # identify push-up represenative
                 (gene, l1) = min(elems.items(), key=lambda x: x[1])
 
+            # (gene, l1) will be the representative that is pushed to the
+            # ancestral node
             p = node.getAncestor()
             if p != None:
                 # if p!= None, then, by definition, l > 0
-                levelLists[l-1].add(p)
-                if not pushLists.has_key(p):
-                    pushLists[p] = dict()
-                if not pushLists[p].has_key(gene):
-                    pushLists[p][gene] = l1
+                levelSets[l-1].add(p)
+                if not pushMaps.has_key(p):
+                    pushMaps[p] = dict()
+                if not pushMaps[p].has_key(gene):
+                    pushMaps[p][gene] = l1
                 else:
-                    pushLists[p][gene] = min(l1, pushLists[p][gene])
+                    pushMaps[p][gene] = min(l1, pushMaps[p][gene])
     return res
 
 
