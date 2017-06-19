@@ -25,6 +25,10 @@ TEAMS_DIR = config['graph_teams_dir']
 SEQ_TEAMS_DIR = config['graph_teams_dir'] + '_seq'
 DELTA = config['delta']
 
+GO_OBO_FILE = glob('%s/*.obo' %config['go_data_dir'])[0]
+GO_ASSOC_DATA = glob('%s/*.gaf' %config['go_data_dir'])[0]
+NN_ANALYSIS_DIR = config['nn_analysis_dir']
+
 rule all: 
     input:
         expand('%s/%s_d{delta}.csv' %(TEAMS_DIR, ORG_SHORT), delta=DELTA)
@@ -140,6 +144,7 @@ rule findStringTeams:
         'mkdir -p %s;' %SEQ_TEAMS_DIR + 
         '%s/graph_teams.py -d {wildcards.delta} {input} > {output}' %BIN_DIR
 
+
 rule make_stats_file:
     input:
         spatial_teams = expand('%s/%s_d{delta}.csv' %(TEAMS_DIR, ORG_SHORT),
@@ -154,10 +159,33 @@ rule make_stats_file:
         '   %s/ClusterEvaluator.py -d$i %s/%s_d$i.csv %s/%s_d$i.csv benchmarks/teams_spatial_d$i.txt;' %(BIN_DIR, TEAMS_DIR, ORG_SHORT, SEQ_TEAMS_DIR, ORG_SHORT) + 
         'done > {output}'
 
-rule visualize_stats:
+
+rule visualize_cluster_stats:
     input:
         '%s_stats.csv' %ORG_SHORT
     output:
         '%s_stats.pdf' %ORG_SHORT
     shell:
         '%s/visualize_cluster_stats.py {input} > {output}' %BIN_DIR
+
+
+rule go_neighbor_cluster_scores:
+    input:
+        obo = GO_OBO_FILE,
+        assoc = GO_ASSOC_DATA,
+        annot = '%s/%s/{gene_data}.annotation' %(GENE_DATA_DIR,
+                config['go_reference_species'])
+        teams = '{teams_dir}/%s_d{delta}.csv' %ORG_SHORT
+    output:
+        '%s/{teams_dir}/%s_d{delta}.csv' %(NN_ANALYSIS_DIR,
+                config['go_reference_species'])
+    shell:
+        'mkdir -p %s/{wildcards.teams_dir};' %NN_ANALYSIS_DIR +
+        '%s/nearest_neighbor_go_scores.py {input.obo} ' %BIN_DIR +
+        '{input.assoc} {input.annot} {input.teams} > {output}'
+
+rule go_analysis:
+    input:
+        expand('%s/{teams_dir}/%s_d{delta}.csv' %(NN_ANALYSIS_DIR, ORG_SHORT),
+                teams_dir=(TEAMS_DIR, SEQ_TEAMS_DIR), delta=DELTA)
+        
