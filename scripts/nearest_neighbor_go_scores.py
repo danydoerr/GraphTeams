@@ -16,6 +16,7 @@ LOG.setLevel(logging.DEBUG)
 ROOT_NODE = 'GO:0008150'
 
 def readAssociations(data):
+    """ read GO gene association (*.gaf) files """
     res = dict()
     for row in csv.reader(data, delimiter='\t'):
         if len(row) < 11:
@@ -31,6 +32,7 @@ def readAssociations(data):
     return res
 
 def readTerm(data):
+    """ helper file of readGO() """
     isTerm = False
     curItem = StringIO()
     for line in data:
@@ -47,6 +49,7 @@ def readTerm(data):
         # otherwise continue
     
 def readGO(data):
+    """ read GO data in OBO format """
     res = dict()
     ns_dict = dict()
     for term in readTerm(data):
@@ -71,6 +74,7 @@ def readGO(data):
     return res
 
 def getAllRootPaths(goId, goData):
+    """ find all paths to the root for a given GO ID """
     if not goId:
         return list()
     if goId not in goData: 
@@ -83,7 +87,7 @@ def getAllRootPaths(goId, goData):
             res.append([goId] + path)
     return res
 def readGenes(data):
-
+    """ read genes from annotation file """
     genes = set()
     for line in csv.reader(data, delimiter='\t'):
         genes.add(line[3])
@@ -91,6 +95,7 @@ def readGenes(data):
     return genes
 
 def constructLevelMap(goTree):
+    """ top-down assignment of levels for each node in the tree """
 
     levels = {goTree.subtree: 0}
     queue = [(goTree.subtree, 0)]
@@ -105,6 +110,7 @@ def constructLevelMap(goTree):
 
 
 def constructGOTree(pathDict):
+    """ construct GO hierarchy """
     # return tree and links from each gene to its leaf representations
     jpaths = list(set(chain(*pathDict.values())))
     max_l = max(map(len, jpaths))
@@ -159,6 +165,8 @@ def constructGOTree(pathDict):
 
 
 def nearestNeighborDist(t, links, levels, genes):
+    """ compute nearest-neighbor distance in GO hiearchy t for each gene in
+    genes """
 
     res = {gene:float('inf') for gene in genes}
 
@@ -209,6 +217,7 @@ def nearestNeighborDist(t, links, levels, genes):
 
 
 def printClusterDistances(t, links, levels, nn_genome, cluster_data, out):
+    """ output GO nearest-neighbor distance offset for each gene cluster """
     for line in csv.reader(cluster_data, delimiter='\t'):
         genes = set(filter(lambda x: links.has_key(x), line[0].split(';')))
         nn_cluster = nearestNeighborDist(t, links, levels, genes)
