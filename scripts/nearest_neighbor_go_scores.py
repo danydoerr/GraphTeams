@@ -17,7 +17,7 @@ LOG.setLevel(logging.DEBUG)
 
 ROOT_NODE = 'GO:0008150'
 
-SAMPLE_POOL = 100000
+SAMPLE_POOL = 1000000
 
 CUTOFF = 15
 
@@ -238,20 +238,8 @@ def printClusterDistances(t, links, levels, nn_genome, cluster_data, genesChr,
         out):
     """ output GO nearest-neighbor distance offset for each gene cluster """
 
-    genes2chr = dict()
-
-    for chro, genes in genesChr.items():
-        new_genes = set()
-        for gene in genes:
-            if links.has_key(gene):
-                if not genes2chr.has_key(gene):
-                    genes2chr[gene] = set()
-                genes2chr[gene].add(chro)
-                new_genes.add(gene)
-        genesChr[chro] = new_genes
-
+    genes = list(chain(*genesChr.values()))
     sampled_data = dict()
-    chrs = set(genesChr.keys())
 
     isHeader = True
     for line in csv.reader(cluster_data, delimiter='\t'):
@@ -266,19 +254,19 @@ def printClusterDistances(t, links, levels, nn_genome, cluster_data, genesChr,
         p = 1
         
         if len(nn_cluster) > 1:
-            chro = next(iter(reduce(lambda x,y: x.intersection(genes2chr[y]),
-                    nn_cluster.keys(), chrs)))
-            k = (chro, len(nn_cluster))
-            if len(nn_cluster) <= CUTOFF and not sampled_data.has_key(k):
-                LOG.info('sampling %s clusters of size %s from chromosome %s..' %(SAMPLE_POOL, len(nn_cluster), chro))
+            score = sum(nn_cluster[g]-nn_genome[g] for g in genes)
+            k = len(nn_cluster)
+            if k <= CUTOFF and not sampled_data.has_key(k):
+                LOG.info('sampling %s clusters of size %s ' %(SAMPLE_POOL, k))
                 sampled_data[k] = list()
                 for _ in xrange(SAMPLE_POOL):
-                    sg = sample(genesChr[chro], len(nn_cluster))
+                    sg = sample(genes, k)
                     sgc = nearestNeighborDist(t, links, levels, sg)
                     sampled_data[k].append(sum(sgc[g]-nn_genome[g] for g in sg))
                 sampled_data[k].sort()
                 LOG.info('done')
-                score = sum(nn_cluster[g]-nn_genome[g] for g in genes)
+                p = float(bisect(sampled_data[k], score))/SAMPLE_POOL
+            elif sampled_data.has_key(k):
                 p = float(bisect(sampled_data[k], score))/SAMPLE_POOL
             else:
                 p = -1
