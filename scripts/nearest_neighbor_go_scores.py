@@ -19,7 +19,7 @@ ROOT_NODE = 'GO:0008150'
 
 SAMPLE_POOL = 1000000
 
-CUTOFF = 15
+CUTOFF = 25
 
 def readAssociations(data):
     """ read GO gene association (*.gaf) files """
@@ -238,7 +238,7 @@ def printClusterDistances(t, links, levels, nn_genome, cluster_data, genesChr,
         out):
     """ output GO nearest-neighbor distance offset for each gene cluster """
 
-    genes = list(chain(*genesChr.values()))
+    all_genes = [g for g in chain(*genesChr.values()) if links.has_key(g)]
     sampled_data = dict()
 
     isHeader = True
@@ -260,7 +260,7 @@ def printClusterDistances(t, links, levels, nn_genome, cluster_data, genesChr,
                 LOG.info('sampling %s clusters of size %s ' %(SAMPLE_POOL, k))
                 sampled_data[k] = list()
                 for _ in xrange(SAMPLE_POOL):
-                    sg = sample(genes, k)
+                    sg = sample(all_genes, k)
                     sgc = nearestNeighborDist(t, links, levels, sg)
                     sampled_data[k].append(sum(sgc[g]-nn_genome[g] for g in sg))
                 sampled_data[k].sort()
