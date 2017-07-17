@@ -27,6 +27,8 @@ DELTA = config['delta']
 
 GO_OBO_FILE = glob('%s/*.obo' %config['go_data_dir'])[0]
 GO_ASSOC_DATA = glob('%s/*.gaf' %config['go_data_dir'])[0]
+GO_REF = config['go_reference_species']
+GO_SAMPLE_SIZE = config['go_sample_pool_size']
 NN_ANALYSIS_DIR = config['nn_analysis_dir']
 
 rule all: 
@@ -171,35 +173,65 @@ rule visualize_cluster_stats:
     shell:
         '%s/visualize_cluster_stats.py {input} > {output}' %BIN_DIR
 
+rule sample_go_neighbor_cluster_scores:
+    input:
+        obo = GO_OBO_FILE,
+        assoc = GO_ASSOC_DATA,
+        annot = ['%s.annotation' %x.rsplit('.', 1)[0] for x in HOMOLOGY_MAPS if
+                x.startswith('%s/%s' %(GENE_DATA_DIR, GO_REF))],
+    params:
+        pool_size = GO_SAMPLE_SIZE
+    output:
+        temp('%s/nn_go_samples_%s_s{cluster_size}_n{params.pool_size}.csv' %(NN_ANALYSIS_DIR,
+        GO_REF))
+    shell:
+        'mkdir -p %s;' %NN_ANALYSIS_DIR +
+        '%s/sample_nn_go_scores.py {input.obo} {input.assoc} ' %BIN_DIR +
+        '{input.annot} {wildcards.cluster_size} {params.pool_size} > {output}'
+
+
+rule all_sample_go_neighbor_cluster_scores:
+    input:
+        expand('%s/sample_%s_s{cluster_size}_n%s.csv' %(NN_ANALYSIS_DIR, GO_REF,
+                GO_SAMPLE_SIZE, cluster_size=range(2,
+                config['go_sample_max_cluster_size']+1))
+    output:
+        '%s/nn_go_samples_%_n%s.csv' %(NN_ANALYSIS_DIR, GO_REF, GO_SAMPLE_SIZE)
+    shell:
+        'for i in $(seq 2 %s); do' %config['go_sample_max_cluster_size'] +
+        '   echo -en $i\\t >> {output};' 
+        '   cat nn_go_samples_%s_s${{i}}_n%s.csv >> {output};' %(GO_REF, GO_SAMPLE_SIZE) +
+        'done'
+
+
 rule go_neighbor_cluster_scores:
     input:
         obo = GO_OBO_FILE,
         assoc = GO_ASSOC_DATA,
         annot = ['%s.annotation' %x.rsplit('.', 1)[0] for x in HOMOLOGY_MAPS if
-                x.startswith('%s/%s' %(GENE_DATA_DIR,
-                config['go_reference_species']))],
+                x.startswith('%s/%s' %(GENE_DATA_DIR, GO_REF))],
+        samples = '%s/nn_go_samples_%_n%s.csv' %(NN_ANALYSIS_DIR, GO_REF,
+                GO_SAMPLE_SIZE),
         teams = '{teams_dir}/%s_d{delta}.csv' %ORG_SHORT
     output:
-        '%s/{teams_dir}/%s_d{delta}.csv' %(NN_ANALYSIS_DIR,
-                config['go_reference_species'])
+        '%s/{teams_dir}/%s_d{delta}.csv' %(NN_ANALYSIS_DIR, GO_REF)
     shell:
         'mkdir -p %s/{wildcards.teams_dir};' %NN_ANALYSIS_DIR +
-        '%s/nearest_neighbor_go_scores.py {input.obo} ' %BIN_DIR +
-        '{input.assoc} {input.annot} {input.teams} > {output}'
+        '%s/nearest_neighbor_go_scores.py -s {input.samples} ' %BIN_DIR +
+        '{input.obo} {input.assoc} {input.annot} {input.teams} > {output}'
 
-#         '   echo -e "$d\t$((0$i/$n))\t$((0$j/$m))";'
+
 rule go_analysis:
     input:
-        expand('%s/{teams_dir}/%s_d{delta}.csv' %(NN_ANALYSIS_DIR,
-                config['go_reference_species']),
+        expand('%s/{teams_dir}/%s_d{delta}.csv' %(NN_ANALYSIS_DIR, GO_REF),
                 teams_dir=(TEAMS_DIR, SEQ_TEAMS_DIR), delta=DELTA)
     output:
-        '%s_go_score_stats.csv' %config['go_reference_species']
+        '%s_go_score_stats.csv' %GO_REF
     shell:
         'for d in %s; do' %' '.join(map(str, DELTA)) + 
-        '   n=$(wc -l %s/%s/%s_d$d.csv| cut -f1 -d\ ); '%(NN_ANALYSIS_DIR, TEAMS_DIR, config['go_reference_species']) +
-        '   m=$(wc -l %s/%s/%s_d$d.csv| cut -f1 -d\ ); '%(NN_ANALYSIS_DIR, SEQ_TEAMS_DIR, config['go_reference_species']) +
-        '   i=$(awk "{{sum += \$3/\$2}} END {{print sum/$n}}" %s/%s/%s_d$d.csv); ' %(NN_ANALYSIS_DIR, TEAMS_DIR, config['go_reference_species']) +
-        '   j=$(awk "{{sum += \$3/\$2}} END {{print sum/$m}}" %s/%s/%s_d$d.csv); ' %(NN_ANALYSIS_DIR, SEQ_TEAMS_DIR, config['go_reference_species']) +
+        '   n=$(wc -l %s/%s/%s_d$d.csv| cut -f1 -d\ ); '%(NN_ANALYSIS_DIR, TEAMS_DIR, GO_REF) +
+        '   m=$(wc -l %s/%s/%s_d$d.csv| cut -f1 -d\ ); '%(NN_ANALYSIS_DIR, SEQ_TEAMS_DIR, GO_REF) +
+        '   i=$(awk "{{sum += \$3/\$2}} END {{print sum/$n}}" %s/%s/%s_d$d.csv);' %(NN_ANALYSIS_DIR, TEAMS_DIR, GO_REF) +
+        '   j=$(awk "{{sum += \$3/\$2}} END {{print sum/$m}}" %s/%s/%s_d$d.csv);' %(NN_ANALYSIS_DIR, SEQ_TEAMS_DIR, GO_REF) +
         '   echo -e "$d\t$i\t$j";'
         'done > {output}'

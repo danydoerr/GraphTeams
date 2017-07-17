@@ -234,12 +234,9 @@ def nearestNeighborDist(t, links, levels, genes):
     return res
 
 
-def printClusterDistances(t, links, levels, nn_genome, cluster_data, genesChr,
-        out):
+def printClusterDistances(t, links, levels, nn_genome, cluster_data, out,
+        samples=None):
     """ output GO nearest-neighbor distance offset for each gene cluster """
-
-    all_genes = [g for g in chain(*genesChr.values()) if links.has_key(g)]
-    sampled_data = dict()
 
     isHeader = True
     for line in csv.reader(cluster_data, delimiter='\t'):
@@ -250,36 +247,21 @@ def printClusterDistances(t, links, levels, nn_genome, cluster_data, genesChr,
         genes = set(filter(lambda x: links.has_key(x), line[0].split(';')))
         nn_cluster = nearestNeighborDist(t, links, levels, genes)
        
-        score = float('inf')
-        p = 1
-        
-        if len(nn_cluster) > 1:
-            score = sum(nn_cluster[g]-nn_genome[g] for g in genes)
-            k = len(nn_cluster)
-            if k <= CUTOFF and not sampled_data.has_key(k):
-                LOG.info('sampling %s clusters of size %s ' %(SAMPLE_POOL, k))
-                sampled_data[k] = list()
-                for _ in xrange(SAMPLE_POOL):
-                    sg = sample(all_genes, k)
-                    sgc = nearestNeighborDist(t, links, levels, sg)
-                    sampled_data[k].append(sum(sgc[g]-nn_genome[g] for g in sg))
-                sampled_data[k].sort()
-                LOG.info('done')
-                p = float(bisect(sampled_data[k], score))/SAMPLE_POOL
-            elif sampled_data.has_key(k):
-                p = float(bisect(sampled_data[k], score))/SAMPLE_POOL
-            else:
-                p = -1
-
-        print >> out, '%s\t%s\t%s\t%s' %(line[0], len(nn_cluster), score, p)
-        
+        score = sum(nn_cluster[g]-nn_genome[g] for g in genes)
+        p = -1
+        k = len(genes)
+        if k > 1 and samples and samples.has_key(k):
+            p = float(bisect(sampled_data[k], score))/SAMPLE_POOL
+        print >> out, '%s\t%s\t%s\t%s' %(line[0], k, score, p)
 
 if __name__ == '__main__':
     parser = ArgumentParser(formatter_class=ADHF)
+    parser.add_argument('-s', '--samples', type=str, 
+            help='file containing empirically sampled nearest neighbor scores')
     parser.add_argument('go_obo_file', type=str, 
-            help='Gene Ontology hierarchy in OBO format')
+            help='gene Ontology hierarchy in OBO format')
     parser.add_argument('go_associations', type=str,
-            help='Gene Ontology assocations file that links GO terms ' + \
+            help='gene Ontology assocations file that links GO terms ' + \
                     'with genes')
     parser.add_argument('genome_annotations', type=str, 
             help='genome annotation file')
@@ -320,7 +302,15 @@ if __name__ == '__main__':
     LOG.info('top-down assignment of levels')
     levels = constructLevelMap(t)
 
+    samples = None
+    if args.samples:
+        LOG.info('reading samples from file %s' %args.samples)
+        samples = dict()
+        for line in csv.reader(open(args.samples), delimiter='\t'):
+            samples[int(line[0])] = map(float, line[1:])
+            
     LOG.info('nearest neighbor analysis over all annotated genes')
     nearest_gene_dists = nearestNeighborDist(t, links, levels, genes)
+
     printClusterDistances(t, links, levels, nearest_gene_dists,
-            open(args.cluster_file), genesChr, stdout)
+            open(args.cluster_file), stdout, samples=samples)
