@@ -6,6 +6,8 @@ hic_file_ending: .txt
 gene_data_file_ending: .txt
 delta: [50, 100, 150, 200, 250, 300, 350, 400, 450, 500, 550, 600]
 go_reference_species: human
+go_sample_pool_size: 100
+go_sample_max_cluster_size: 25
 
 #------------------------------------------------------------------------------
 
