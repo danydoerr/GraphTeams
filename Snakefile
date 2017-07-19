@@ -220,7 +220,16 @@ rule go_neighbor_cluster_scores:
         '{input.obo} {input.assoc} {input.annot} {input.teams} > {output}'
 
 
-rule go_analysis:
+rule go_scores_significant:
+    input:
+        '%s/{teams_dir}/%s_d{delta}.csv' %(GO_ANALYSIS_DIR, GO_REF)
+    output:
+        '%s/{teams_dir}/%s_d{delta}.significant' %(GO_ANALYSIS_DIR, GO_REF)
+    shell:
+        'awk \'{{if ($4 >= 0 && $4 < 0.05) print $0}}\' {input} | sort -nk4 > {output}'
+        
+
+rule go_score_stats:
     input:
         expand('%s/{teams_dir}/%s_d{delta}.csv' %(GO_ANALYSIS_DIR, GO_REF),
                 teams_dir=(TEAMS_DIR, SEQ_TEAMS_DIR), delta=DELTA)
@@ -234,3 +243,12 @@ rule go_analysis:
         '   j=$(awk "{{if (\$2 > 0) sum += \$3/\$2}} END {{print sum/$m}}" %s/%s/%s_d$d.csv);' %(GO_ANALYSIS_DIR, SEQ_TEAMS_DIR, GO_REF) +
         '   echo -e "$d\t$i\t$j";'
         'done > {output}'
+
+rule go_analysis:
+    input: 
+        expand('%s/{teams_dir}/%s_d{delta}.significant' %(GO_ANALYSIS_DIR, GO_REF),
+                teams_dir=(TEAMS_DIR, SEQ_TEAMS_DIR), delta=DELTA),
+        '%s_go_score_stats.csv' %GO_REF
+
+
+
