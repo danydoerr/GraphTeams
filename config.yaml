@@ -6,7 +6,7 @@ hic_file_ending: .txt
 gene_data_file_ending: .txt
 delta: [50, 100, 150, 200, 250, 300, 350, 400, 450, 500, 550, 600]
 go_reference_species: human
-go_sample_pool_size: 100
+go_sample_pool_size: 10000000
 go_sample_max_cluster_size: 25
 
 #------------------------------------------------------------------------------
@@ -20,7 +20,7 @@ normalized_data_dir: normalized_hic_maps
 graph_data_dir: graphs
 gene_data_dir: data/genomic
 graph_teams_dir: teams
+go_analysis_dir: go_analysis
 go_data_dir: data/go
-nn_analysis_dir: go_analysis
 
 
