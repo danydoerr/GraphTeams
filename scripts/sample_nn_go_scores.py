@@ -7,7 +7,7 @@ from os.path import basename
 from random import sample
 import logging
 
-from nearest_neighbor_go_scores import readAssociations, readGo, readGenes, \
+from nearest_neighbor_go_scores import readAssociations, readGO, readGenes, \
         getAllRootPaths, constructGOTree, constructLevelMap, \
         nearestNeighborDist
 
@@ -15,7 +15,7 @@ LOG = logging.getLogger(__name__)
 LOG.setLevel(logging.DEBUG)
 
 
-def sample(t, links, levels, nn_genome, genesChr, cluster_size, no_of_samples):
+def sample_nn(t, links, levels, nn_genome, genesChr, cluster_size, no_of_samples):
     """ sample GO nearest-neighbor distances  """
 
     all_genes = [g for g in chain(*genesChr.values()) if links.has_key(g)]
@@ -37,9 +37,9 @@ if __name__ == '__main__':
                     'with genes')
     parser.add_argument('genome_annotations', type=str, 
             help='genome annotation file')
-    parser.add_argument('cluster_size', type=str,
+    parser.add_argument('cluster_size', type=int,
             help='size of the gene cluster (measured in annotated genes)')
-    parser.add_argument('no_of_samples', type=str,
+    parser.add_argument('no_of_samples', type=int,
             help='number of draws from the sample pool')
 
     args = parser.parse_args()
@@ -49,7 +49,7 @@ if __name__ == '__main__':
     ch.setLevel(logging.ERROR)
     ch.setFormatter(logging.Formatter('!! %(message)s'))
     cf = logging.FileHandler('sample_nn_go_s%s_n%s.log' %(args.cluster_size,
-        args.no_of_samples, mode='w')
+        args.no_of_samples), mode='w')
     cf.setLevel(logging.DEBUG)
     cf.setFormatter(logging.Formatter('%(levelname)s\t%(asctime)s\t%(message)s'))
     LOG.addHandler(cf)
@@ -75,9 +75,10 @@ if __name__ == '__main__':
     LOG.info('top-down assignment of levels')
     levels = constructLevelMap(t)
 
-    LOG.info('sampling %s clusters of size %s ' %(SAMPLE_POOL, k))
+    LOG.info('sampling %s clusters of size %s ' %(args.no_of_samples,
+        args.cluster_size))
     nearest_gene_dists = nearestNeighborDist(t, links, levels, genes)
-    samples = sample(t, links, levels, nearest_gene_dists, genesChr,
+    samples = sample_nn(t, links, levels, nearest_gene_dists, genesChr,
         args.cluster_size, args.no_of_samples)
-    print '\t'.join(map(str, samples)
+    print '\t'.join(map(str, samples))
     LOG.info('done')
