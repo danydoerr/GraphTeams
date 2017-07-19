@@ -226,7 +226,7 @@ rule go_scores_significant:
     output:
         '%s/{teams_dir}/%s_d{delta}.significant' %(GO_ANALYSIS_DIR, GO_REF)
     shell:
-        'awk \'{{if ($4 >= 0 && $4 < 0.05) print $0}}\' {input} | sort -nk4 > {output}'
+        'awk \'{{if ($4 >= 0 && $4 < 0.05) print $0}}\' {input} | sort -gk4 > {output}'
         
 
 rule go_score_stats:
