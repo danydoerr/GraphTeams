@@ -17,10 +17,6 @@ LOG.setLevel(logging.DEBUG)
 
 ROOT_NODE = 'GO:0008150'
 
-SAMPLE_POOL = 10000000
-
-CUTOFF = 25
-
 def readAssociations(data):
     """ read GO gene association (*.gaf) files """
     res = dict()
@@ -246,12 +242,13 @@ def printClusterDistances(t, links, levels, nn_genome, cluster_data, out,
 
         genes = set(filter(lambda x: links.has_key(x), line[0].split(';')))
         nn_cluster = nearestNeighborDist(t, links, levels, genes)
-       
-        score = sum(nn_cluster[g]-nn_genome[g] for g in genes)
+        
+        score = float('inf')
         p = -1
         k = len(genes)
         if k > 1 and samples and samples.has_key(k):
-            p = float(bisect(sampled_data[k], score))/SAMPLE_POOL
+            score = sum(nn_cluster[g]-nn_genome[g] for g in genes)
+            p = float(bisect(samples[k], score))/len(samples[k])
         print >> out, '%s\t%s\t%s\t%s' %(line[0], k, score, p)
 
 if __name__ == '__main__':
