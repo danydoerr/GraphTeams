@@ -12,7 +12,7 @@ REQUIREMENTS
 * PYTHON3 and PYTHON2 (https://www.python.org/)
 * PYTHON2 libraries:
     - NetworkX
-* SNAKEMAKE (http://snakemake.bitbucket.org)
+* SNAKEMAKE (http://snakemake.readthedocs.io/en/stable/)
 
 
 INSTALLATION
