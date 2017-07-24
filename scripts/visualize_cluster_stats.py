@@ -42,11 +42,12 @@ def visualize_stats(data, out):
             fontsize=title_fontsize)
     axs[0][1].set_yscale('log')
 
-    # nested clusters
+    # runtime of GraphTeams
     axs[1][1].scatter(X+width/2, data[:, 5], color=COLOR1)
 #    axs[1][0].legend(('1D gene clusters', ), fontsize=title_fontsize)
     axs[1][1].set_xticks(X+width/2)
     axs[1][1].set_xticklabels(map(int, data[:, 0]))
+    axs[1][1].set_ylim([0, max(data[:,5])+10])
     axs[1][1].set_ylabel('time in mins')
     axs[1][1].set_xlabel(r'$\delta$')
     axs[1][1].set_title('computation time of 3D clusters', fontsize=title_fontsize)
