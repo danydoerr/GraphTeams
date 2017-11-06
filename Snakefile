@@ -3,17 +3,28 @@ configfile: 'config.yaml'
 from os.path import basename, join, isdir
 from itertools import chain
 from glob import glob
+import re
 
 BIN_DIR = config['bin_dir']
 
 HIC_DATA_DIR = config['hic_data_dir']
 ORGANISMS = sorted(basename(x) for x in glob('%s/*' %HIC_DATA_DIR) if isdir(x))
 ORG_SHORT = '_'.join(map(lambda x: x[:3].lower(), ORGANISMS))
-HIC_MAPS_BASE = sorted(map(lambda y: join(*(y.split('/')[
+HIC_MAPS_BASE_ORIG = sorted(map(lambda y: join(*(y.split('/')[
         len(HIC_DATA_DIR.split('/')):])), chain(*(glob(
         '%s/%s/*%s' %(HIC_DATA_DIR, x, config['hic_file_ending'])) for x in
         ORGANISMS))))
+
+HIC_RES_PAT = re.compile('.*\.(\d+)\.txt$')
+HIC_RES_ALL = set(map(lambda x: int(HIC_RES_PAT.match(x).group(1)), HIC_MAPS_BASE_ORIG))
+HIC_RES = min(HIC_RES_ALL)
+HIC_TO_RESIZE = list(filter(lambda x: not x.endswith('%s.txt' %HIC_RES), HIC_MAPS_BASE_ORIG))
+HIC_NOT_TO_RESIZE = list(filter(lambda x: x.endswith('%s.txt' %HIC_RES), HIC_MAPS_BASE_ORIG))
+HIC_AFTER_RESIZE = list(map(lambda x: '%s.resized' %x, HIC_TO_RESIZE))
+HIC_MAPS_BASE = HIC_AFTER_RESIZE + HIC_NOT_TO_RESIZE
+
 NORM_HIC_DIR = config['normalized_data_dir']
+TRUNC_HIC_DIR = config['truncated_data_dir']
 GRAPH_DATA_DIR = config['graph_data_dir']
 SEQ_GRAPH_DATA_DIR = config['graph_data_dir'] + '_seq'
 
@@ -43,18 +54,31 @@ rule cutMaps:
     input:
         '%s/{organism}/{hic_map}' %HIC_DATA_DIR
     output:
-        temp('%s/{organism}/{hic_map}.truncated' %NORM_HIC_DIR)
+        temp('%s/{organism}/{hic_map}' %TRUNC_HIC_DIR)
     shell:
-        'mkdir -p $(dirname {output}); tail -n +3 {input} | cut -f2- > {output}'
+        'mkdir -p `dirname {output}`; tail -n +3 {input} | cut -f2- > {output}'
+
+
+rule resizeMaps:
+    input:
+        '%s/{hic_map}' %TRUNC_HIC_DIR
+    params:
+        new_resolution = HIC_RES
+    output:
+        temp('%s/{hic_map}.resized' %TRUNC_HIC_DIR)
+    shell:
+        '%s/ResChanger.py {params.new_resolution} {input}' %BIN_DIR
 
 
 rule normalizeMaps:
     input:
-        expand('%s/{hic_map}.truncated' %NORM_HIC_DIR, hic_map=HIC_MAPS_BASE)
+        expand('%s/{hic_map}' %TRUNC_HIC_DIR, hic_map=HIC_MAPS_BASE)
     output:
-        expand('%s/{hic_map}.truncated.dmat' %NORM_HIC_DIR, hic_map=HIC_MAPS_BASE)
+        expand('%s/{hic_map}.dmat' %NORM_HIC_DIR, hic_map=HIC_MAPS_BASE)
     shell:
-        '%s/Normalizer.py {input}' %BIN_DIR
+        'mkdir -p `dirname {output}`; %s/Normalizer.py {input};' %BIN_DIR +
+        'for organism in %s;' %' '.join(ORGANISMS) +
+        'do mv %s/"$organism"/*.dmat %s/"$organism"/ ; done' %(TRUNC_HIC_DIR, NORM_HIC_DIR)
 
 
 rule skipHeader:
@@ -91,7 +115,7 @@ rule makeHomologyTable:
 
 rule buildGraphs:
     input:
-        hic_dmat = lambda wildcards: expand('%s/{hic_map}.truncated.dmat' %(NORM_HIC_DIR), 
+        hic_dmat = lambda wildcards: expand('%s/{hic_map}.dmat' %(NORM_HIC_DIR),
                 hic_map=(x for x in HIC_MAPS_BASE if x.split('/', 1)[0] ==
                 wildcards.organism)),
         annotation_file = lambda wildcards: ['%s.annotation' %x.rsplit('.',
@@ -99,7 +123,7 @@ rule buildGraphs:
                 wildcards.organism))],
         homology_table = '%s/homology_%s.csv' %(GENE_DATA_DIR, ORG_SHORT)
     params:
-        bin_size = config['hic_map_resolution']
+        bin_size = HIC_RES
     output:
         '%s/{organism}.ml' %(GRAPH_DATA_DIR)
     shell:
@@ -123,12 +147,12 @@ rule findTeams:
 
 rule buildSequentialGraphs:
     input:
-        hic_dmat = lambda wildcards: expand('%s/{hic_map}.truncated.dmat' %(NORM_HIC_DIR), hic_map=(x for x in HIC_MAPS_BASE if x.split('/', 1)[0] == wildcards.organism)),
+        hic_dmat = lambda wildcards: expand('%s/{hic_map}.dmat' %(TRUNC_HIC_DIR), hic_map=(x for x in HIC_MAPS_BASE if x.split('/', 1)[0] == wildcards.organism)),
         annotation_file = lambda wildcards: ['%s.annotation' %x.rsplit('.', 1)[0] for x in
                 HOMOLOGY_MAPS if x.rsplit('/', 2)[-2] == wildcards.organism],
         homology_table = '%s/homology_%s.csv' %(GENE_DATA_DIR, ORG_SHORT)
     params:
-        bin_size = config['hic_map_resolution']
+        bin_size = HIC_RES
     output:
         '%s/{organism}.ml' %(SEQ_GRAPH_DATA_DIR)
     shell:
@@ -197,7 +221,7 @@ rule all_sample_go_neighbor_cluster_scores:
     output:
         '%s/%s_samples_n%s.csv' %(GO_ANALYSIS_DIR, GO_REF, GO_SAMPLE_SIZE)
     shell:
-        'for i in $(seq 2 %s); do' %config['go_sample_max_cluster_size'] +
+        'for i in `seq 2 %s`; do' %config['go_sample_max_cluster_size'] +
         '   echo -en "$i\\t" >> {output};' 
         '   cat %s/%s_samples_s${{i}}_n%s.csv >> {output};' %(GO_ANALYSIS_DIR, GO_REF, GO_SAMPLE_SIZE) +
         'done'
@@ -237,10 +261,10 @@ rule go_score_stats:
         '%s_go_score_stats.csv' %GO_REF
     shell:
         'for d in %s; do' %' '.join(map(str, DELTA)) + 
-        '   n=$(wc -l %s/%s/%s_d$d.csv| cut -f1 -d\ ); '%(GO_ANALYSIS_DIR, TEAMS_DIR, GO_REF) +
-        '   m=$(wc -l %s/%s/%s_d$d.csv| cut -f1 -d\ ); '%(GO_ANALYSIS_DIR, SEQ_TEAMS_DIR, GO_REF) +
-        '   i=$(awk "{{if (\$2 > 0) sum += \$3/\$2}} END {{print sum/$n}}" %s/%s/%s_d$d.csv);' %(GO_ANALYSIS_DIR, TEAMS_DIR, GO_REF) +
-        '   j=$(awk "{{if (\$2 > 0) sum += \$3/\$2}} END {{print sum/$m}}" %s/%s/%s_d$d.csv);' %(GO_ANALYSIS_DIR, SEQ_TEAMS_DIR, GO_REF) +
+        '   n=`wc -l %s/%s/%s_d$d.csv| cut -f1 -d\ `; '%(GO_ANALYSIS_DIR, TEAMS_DIR, GO_REF) +
+        '   m=`wc -l %s/%s/%s_d$d.csv| cut -f1 -d\ `; '%(GO_ANALYSIS_DIR, SEQ_TEAMS_DIR, GO_REF) +
+        '   i=`awk "{{if (\$2 > 0) sum += \$3/\$2}} END {{print sum/$n}}" %s/%s/%s_d$d.csv`;' %(GO_ANALYSIS_DIR, TEAMS_DIR, GO_REF) +
+        '   j=`awk "{{if (\$2 > 0) sum += \$3/\$2}} END {{print sum/$m}}" %s/%s/%s_d$d.csv`;' %(GO_ANALYSIS_DIR, SEQ_TEAMS_DIR, GO_REF) +
         '   echo -e "$d\t$i\t$j";'
         'done > {output}'
 
