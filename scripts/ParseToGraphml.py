@@ -5,58 +5,30 @@ import argparse as args
 
 #Function to create a graphml element that represents a weighted edge between two nodes
 def cEdge(orig, dest, w, d):
-    if not d:
-        return "    edge [\n        source " + str(orig) + "\n        target " + str(dest) + "\n        weight " + \
-               str(w) + "\n    ]\n"
-    elif w <= d:
-        return "    edge [\n        source " + str(orig) + "\n        target " + str(dest) + "\n        weight " + \
-               str(w) + "\n    ]\n"
-    else:
-        return ""
+    edge = ''
+    if not d or w <= d:
+        edge = ('    edge [\n        source %s\n        target %s\n' + \
+                '        weight %s\n    ]\n') %(orig, dest, w)
+    return edge  
 
-#Setting up the argument parser
 
-parser = args.ArgumentParser(description="Creates a file in graphml format for the gene teams algorithm")
-parser.add_argument('A', metavar='AnnotationFile', type=str, help="Path to the file that contains all gene annotations."
-                                                                  + "Should be in gff3 format")
-parser.add_argument('H', metavar='HomologyTable', type=str, help="Path to the file that contains names of homologous ge"
-                                                                 + "nes of a gene family. Should be a tab separated fil"
-                                                                 + "e in which each line is a gene family and each colu"
-                                                                 + "mn contains the names of homologous genes of a spec"
-                                                                 + "ies.")
-parser.add_argument('T', metavar='TargetFile', type=str, help="Path to the file in which the graph sould be written to."
-                    )
-parser.add_argument('M', metavar='Hi-C_Map', type=str, nargs='+', help="Path to the file that contains a Hi-C map. Shou"
-                                                                       + "ld be a tab separated file consisting of thre"
-                                                                       + "e colums containing the pair of bins and thei"
-                                                                       + "r count.")
-parser.add_argument('-s', '--binSize', default=0, type=int, help="Size of bin of the Hi-C map, i.e. its resolution.")
-parser.add_argument('-d', '--delta', default=None, type=int, help="Ignore matrix values larger than DELTA to build the "
-                                                                  + "Graph.")
-
-arguments = parser.parse_args()
-
-# Check if bin size is set
-if arguments.binSize <= 0:
-    print >> sys.stderr, "Bin sizes not or not correctly set."
-    exit(-1)
 
 # Write the header
-oFile = open(arguments.T, "w")
-oFile.write("graph [\n    directed 0\n")
+oFile = open(arguments.T, 'w')
+oFile.write('graph [\n    directed 0\n')
 
 # Reading in homology table
 homologies = {}
 
-hFile = open(arguments.H, "r")
+hFile = open(arguments.H, 'r')
 
 # For each gene family...
 for fam in hFile:
     # get rid of the newline character
-    fam = fam.replace("\n", "")
+    fam = fam.replace('\n', '')
 
     # split the line by column
-    homs = fam.split("\t")
+    homs = fam.split('\t')
 
     # store the gene family in a dictionary
     homologies[homs[0]] = homs
@@ -70,14 +42,14 @@ geneBins = {}
 nC = 0
 eC = 0
 
-aFile = open(arguments.A, "r")
+aFile = open(arguments.A, 'r')
 
 # For each line in the annotation file...
 for ann in aFile:
-    ann = ann.replace("\n", "")
+    ann = ann.replace('\n', '')
 
     # split the line by its columns
-    infos = ann.split("\t")
+    infos = ann.split('\t')
 
     fName = infos[3]
 
@@ -89,8 +61,8 @@ for ann in aFile:
             name = fam[0]
 
             # create node for gene
-            oFile.write("    node [\n        id " + str(nC) + "\n        label " + str(nC) + '\n        class "' + name
-                        + '"\n    ]\n')
+            oFile.write('    node [\n        id ' + str(nC) + '\n        label ' + str(nC) + '\n        class '' + name
+                        + ''\n    ]\n')
 
             # find out which bin corresponds to the current gene
             binNum = str((int(infos[1]) / int(arguments.binSize)) + 1)
@@ -116,7 +88,7 @@ maps = arguments.M
 #Dictionary to store amount of contacts for each region
 contCounts = {}
 for i in range(len(maps)):
-    mFile = open(maps[i], "r")
+    mFile = open(maps[i], 'r')
 
     #a counter for save the number of lines already read in (because this is the bin number)
     l = 0
@@ -129,7 +101,7 @@ for i in range(len(maps)):
         pair = pair.replace('\n', '')
 
         #spilt by column
-        cell = pair.split("\t")
+        cell = pair.split('\t')
 
         #each line has a tab at the end therefore we need to delete it first
         cell.pop()
@@ -150,8 +122,8 @@ for i in range(len(maps)):
         #sum up all entries of this line
         overallContacts = 0
         for j in range(len(cell)):
-            #check if entry is "NULL"
-            if cell[j] == "NULL":
+            #check if entry is 'NULL'
+            if cell[j] == 'NULL':
                 overallContacts += 0
             else:
                 overallContacts += float(cell[j])
@@ -190,7 +162,7 @@ for i in range(len(maps)):
 '''
 # Add edges to the graph
 for i in range(len(arguments.M)):
-    mFile = open(arguments.M[i], "r").readlines()
+    mFile = open(arguments.M[i], 'r').readlines()
 
     # counter for lines that are already read in to determine the current bin
     lCounter = 0
@@ -198,7 +170,7 @@ for i in range(len(arguments.M)):
     for line in mFile:
         lCounter += 1
 
-        line = line.replace("\n", "")
+        line = line.replace('\n', '')
 
         cols = line.split('\t')
 
@@ -235,18 +207,18 @@ for i in range(len(arguments.M)):
                     if gene[0] == fchrom:
                         if str(lCounter) in geneBins:
                             for ogene in geneBins[str(lCounter)]:
-                                if ogene[0] == schrom and j < len(cols) and cols[j] != "NULL" and float(cols[j]) > 0:
+                                if ogene[0] == schrom and j < len(cols) and cols[j] != 'NULL' and float(cols[j]) > 0:
 
                                     w = float(cols[j])
 
                                     oFile.write(cEdge(gene[1], ogene[1], w, arguments.delta))
-                                if ogene[0] == schrom and j < len(cols) and cols[j] == "NULL" and lCounter == j and \
+                                if ogene[0] == schrom and j < len(cols) and cols[j] == 'NULL' and lCounter == j and \
                                         len(mFile) == len(cols):
                                     dbp = float(cols[j-1]) / float(arguments.binSize)
                                     w = dbp * (abs(gene[2] - ogene[2]))
 
                                     oFile.write(cEdge(gene[1], ogene[1], w, arguments.delta))
-                                if ogene[0] == schrom and j < len(cols) and cols[j] != "NULL" and float(cols[j]) == 0 \
+                                if ogene[0] == schrom and j < len(cols) and cols[j] != 'NULL' and float(cols[j]) == 0 \
                                         and lCounter == j and len(mFile) == len(cols):
                                     dbp = float(cols[j-1]) / float(arguments.binSize)
                                     w = dbp * (abs(gene[2] - ogene[2]))
@@ -254,5 +226,39 @@ for i in range(len(arguments.M)):
                                     oFile.write(cEdge(gene[1], ogene[1], w, arguments.delta))
 
 # Finish the output file
-oFile.write("]")
+oFile.write(']')
 oFile.close()
+
+
+if __name__ == '__main__':
+
+#Setting up the argument parser
+    parser = args.ArgumentParser(
+            description='Creates a file in graphml format for the gene ' + \
+                    'teams algorithm')
+    parser.add_argument('A', metavar='AnnotationFile', type=str, 
+            help='Path to the file that contains all gene annotations. ' + \
+                    'Should be in gff3 format')
+    parser.add_argument('H', metavar='HomologyTable', type=str, 
+            help='Path to the file that contains names of homologous ' + \
+                    'genes of a gene family.  Should be a tab separated ' + \
+                    'file in which each line is a gene family and each ' + \
+                    'column contains the names of homologous genes of a ' + \
+                    'species.')
+    parser.add_argument('T', metavar='TargetFile', type=str, 
+            help='Path to the file in which the graph sould be written to.')
+    parser.add_argument('M', metavar='Hi-C_Map', type=str, nargs='+', 
+            help='Path to the file that contains a Hi-C map. Should be ' + \
+                    'a tab separated file consisting of three colums ' + \
+                    ' containing the pair of bins and their count.')
+    parser.add_argument('-s', '--binSize', default=0, type=int, 
+            help='Size of bin of the Hi-C map, i.e. its resolution.')
+    parser.add_argument('-d', '--delta', default=None, type=int, 
+            help='Ignore matrix values larger than DELTA to build the graph.')
+
+    arguments = parser.parse_args()
+
+# Check if bin size is set
+    if arguments.binSize <= 0:
+        print >> sys.stderr, 'Bin sizes not or not correctly set.'
+        exit(1)
