@@ -9,7 +9,7 @@ import re
 
 
 PAT_DIXON = re.compile('^(?:.*\|)?(\w+):(\d+)-(\d+)(?:\|.*)?$')
-PAT_HOMER = re.compile('(\d+)-(\d+)$')
+PAT_HOMER = re.compile('([^-]+)-(\d+)$')
 
 
 LOG = logging.getLogger(__name__)
@@ -30,7 +30,8 @@ def readHomologies(data):
         # store the gene family in a dictionary with the first column being the
         # family identifier
         for h in line:
-            res[h] = h
+            if h:
+                res[h] = line[0]
     return res
 
 
@@ -77,8 +78,7 @@ def readXSegments(data, data_type):
             res.append((chrx, start, end, i-1))
 
     elif data_type == 'HOMER':
-
-        import pdb; pdb.set_trace() 
+        line = data.next()
         prev = None
         seg_len = 0
         for i in xrange(2, len(line)):
@@ -88,18 +88,19 @@ def readXSegments(data, data_type):
                         'header \'%s\' (data_type = %s). Exiting.') %(line[2],
                             data_type))
                 exit(1)
-            cur = (m.group(1), int(m.group(2)))
-            if prev == None:
-                prev = cur 
-            elif prev[0] != cur[0]:
-                res.append((prev[0], prev[1], prev[1]+seq_len, i-3))
-            else:
-                res.append((prev[0], prev[1], cur[1], i-3))
-                seq_len = cur[1]-prev[1]
 
+            cur = (m.group(1), int(m.group(2)))
+
+            if prev != None:
+                if prev[0] != cur[0]:
+                    res.append((prev[0], prev[1], prev[1]+seq_len, i-3))
+                else:
+                    res.append((prev[0], prev[1], cur[1], i-3))
+                    seq_len = cur[1]-prev[1]
             prev = cur
+
         if prev != None:
-            res.append((prev[0], prev[1], prev[1]+seq_len, len(line)-2))
+            res.append((prev[0], prev[1], prev[1]+seq_len, len(line)-3))
 
     return res
 
@@ -134,10 +135,12 @@ def readYSegments(data, data_type):
             c += 1
 
     elif data_type == 'HOMER':
-        import pdb; pdb.set_trace() 
         prev = None
         seg_len = 0
-        c = 0
+        # set it to -1 because we want to output the lines that have been read
+        # in the iteration before
+        c = -1
+        isHeader = True
         for line in data:
             if isHeader:
                 isHeader = False
@@ -149,16 +152,17 @@ def readYSegments(data, data_type):
                         'header \'%s\' (data_type = %s). Exiting.') %(line[:i],
                             data_type))
                 exit(1)
-            cur = (m.group(1), int(m.group(2)))
-            if prev == None:
-                prev = cur 
-            elif prev[0] != cur[0]:
-                res.append((prev[0], prev[1], prev[1]+seq_len, i-3))
-            else:
-                res.append((prev[0], prev[1], cur[1], i-3))
-                seq_len = cur[1]-prev[1]
 
+            cur = (m.group(1), int(m.group(2)))
+
+            if prev != None:
+                if prev[0] != cur[0]:
+                    res.append((prev[0], prev[1], prev[1]+seq_len, c))
+                else:
+                    res.append((prev[0], prev[1], cur[1], c))
+                    seq_len = cur[1]-prev[1]
             prev = cur
+
             c += 1
         if prev != None:
             res.append((prev[0], prev[1], prev[1]+seq_len, c))
@@ -298,6 +302,6 @@ if __name__ == '__main__':
     genes = readAnnotations(open(args.annotation_file))
     homologies = readHomologies(open(args.homology_table))
 
-    parseHiCMapAndWriteGraph(args.hic_map, args.type, genes, homologies,
+    parseHiCMapAndWriteGraph(args.hic_map, args.format, genes, homologies,
             args.delta, stdout)
     

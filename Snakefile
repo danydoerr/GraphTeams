@@ -6,11 +6,11 @@ from glob import glob
 import re
 
 BIN_DIR = config['bin_dir']
+HIC_DATA_DIR = config['hic_data_dir']
 
 ORGANISMS = sorted(basename(x) for x in glob('%s/*' %HIC_DATA_DIR) if isdir(x))
 ORG_SHORT = '_'.join(map(lambda x: x[:3].lower(), ORGANISMS))
 
-HIC_DATA_DIR = config['hic_data_dir']
 HIC_MAPS_BASE = sorted(map(lambda y: join(*(y.split('/')[
         len(HIC_DATA_DIR.split('/')):])), chain(*(glob(
         '%s/%s/*%s' %(HIC_DATA_DIR, x, config['hic_file_ending'])) for x in
@@ -39,8 +39,8 @@ SEQ_TEAMS_DIR = config['graph_teams_dir'] + '_seq'
 DELTA = config['delta']
 
 GO_ANALYSIS_DIR = config['go_analysis_dir']
-GO_ASSOC_DATA = glob('%s/*.gaf' %config['go_data_dir'])[0]
-GO_OBO_FILE = glob('%s/*.obo' %config['go_data_dir'])[0]
+GO_ASSOC_DATA = next(iter(glob('%s/*.gaf' %config['go_data_dir'])), [])
+GO_OBO_FILE = next(iter(glob('%s/*.obo' %config['go_data_dir'])), [])
 GO_REF = config['go_reference_species']
 GO_SAMPLE_SIZE = config['go_sample_pool_size']
 
@@ -56,7 +56,7 @@ rule all_sequential:
 
 rule normalize:
     input:
-        expand('%s/{hic_map}' %TRUNC_HIC_DIR, hic_map=HIC_MAPS_BASE)
+        expand('%s/{hic_map}' %HIC_DATA_DIR, hic_map=HIC_MAPS_BASE)
     params:
         row_offset = HIC_ROW_OFFSET,
         col_offset = HIC_COL_OFFSET,
@@ -71,36 +71,28 @@ rule normalize:
         '-y {params.row_offset} -o {params.out_dir} {input} 2> {log}'
 
 
-rule skipHeader:
+rule process_annotations:
     input:
-        '%s/{organism}/{gene_data}%s' %(GENE_DATA_DIR,
-                config['gene_data_file_ending'])
+        '%s/{organism}/{gene_data}%s' %(GENE_DATA_DIR, config['gene_data_file_ending'])
+    params:
+        ann_format = config['gene_data_format']
     output:
-        temp('%s/{organism}/{gene_data}.noheader' %GENE_DATA_DIR)
+        '%s/{organism}/{gene_data}.annotation' %GENE_DATA_DIR
     shell:
-        'tail -n +2 {input} > {output}'
+        '%s/process_annotations.py -f {params.ann_format} ' %BIN_DIR + 
+        '{input} > {output}'
 
 
-rule makeAnnotationFile:
-    input:
-        '%s/{organism}/{gene_data}.noheader' %GENE_DATA_DIR
-    output:
-        ann = '%s/{organism}/{gene_data}.annotation' %GENE_DATA_DIR,
-	tmp = temp('%s/{organism}/{gene_data}.annotation.tmp' %GENE_DATA_DIR)
-    shell:
-        '%s/AnFileMaker.py {input} {output.tmp};' %BIN_DIR +
-	'sort {output.tmp} | uniq > {output.ann}'
-
-
-rule makeHomologyTable:
-    input:
-        map(lambda x: '%s.noheader' %x.rsplit('.', 1)[0], HOMOLOGY_MAPS)
-    output:
-        table = '%s/homology_%s.csv' %(GENE_DATA_DIR, ORG_SHORT),
-        tmp = temp('%s/homology_%s.csv.tmp' %(GENE_DATA_DIR, ORG_SHORT))
-    shell:
-        '%s/MakeHomList.py {input} {output.tmp};' %BIN_DIR + 
-        'sort {output.tmp} | uniq > {output.table};'
+if config['gene_data_format'] == 'ENSEMBLE':
+    rule makeHomologyTable:
+        input:
+            HOMOLOGY_MAPS
+        output:
+            table = '%s/homology_%s.csv' %(GENE_DATA_DIR, ORG_SHORT),
+            tmp = temp('%s/homology_%s.csv.tmp' %(GENE_DATA_DIR, ORG_SHORT))
+        shell:
+            '%s/MakeHomList.py {input} > {output.tmp};' %BIN_DIR + 
+            'sort {output.tmp} | uniq > {output.table};'
 
 
 rule buildGraphs:
@@ -116,21 +108,21 @@ rule buildGraphs:
         mx_delta = max(DELTA),
         hic_format = HIC_FORMAT,
     output:
-        '%s/{organism}_d{delta,\d+}.ml' %(GRAPH_DATA_DIR, max(DELTA))
+        '%s/{organism}_d%s.ml' %(GRAPH_DATA_DIR, max(DELTA))
     log:
         'hic_to_graph.log'
     shell:
         'mkdir -p %s;' %GRAPH_DATA_DIR + 
-        '%s/hic_to_graph.py -d {params.delta} -f {params.hic_format}' %BIN_DIR +
+        '%s/hic_to_graph.py -d {params.mx_delta} -f {params.hic_format}' %BIN_DIR +
         ' {input.annotation_file} {input.homology_table} {input.hic_dmat} > '
         '{output} 2> {log}'
 
 
 rule findTeams:
     input:
-        graph=expand('%s/{organism}.ml' %GRAPH_DATA_DIR, organism=ORGANISMS)
+        graph=expand('%s/{organism}_d%s.ml' %(GRAPH_DATA_DIR, max(DELTA)), organism=ORGANISMS)
     output:
-        '%s/%s_d{delta}.csv' %(TEAMS_DIR, ORG_SHORT)
+        '%s/%s_d{delta,[0-9.]+}.csv' %(TEAMS_DIR, ORG_SHORT)
     benchmark:
         'benchmarks/teams_spatial_d{delta}.txt'
     shell:
@@ -157,7 +149,7 @@ rule findTeams:
 
 rule findStringTeams:
     input:
-        graph=expand('%s/{organism}.ml' %SEQ_GRAPH_DATA_DIR, organism=ORGANISMS)
+        graph=expand('%s/{organism}_d%s.ml' %(SEQ_GRAPH_DATA_DIR, max(DELTA)), organism=ORGANISMS)
     output:
         '%s/%s_d{delta}.csv' %(SEQ_TEAMS_DIR, ORG_SHORT)
     benchmark:
