@@ -26,7 +26,6 @@ elif HIC_FORMAT == 'HOMER':
     HIC_ROW_OFFSET = config.get('hic_row_offset', 1)
     HIC_COL_OFFSET = config.get('hic_col_offset', 2)
 
-NORM_HIC_DIR = config['normalized_data_dir']
 GRAPH_DATA_DIR = config['graph_data_dir']
 SEQ_GRAPH_DATA_DIR = config['graph_data_dir'] + '_seq'
 
@@ -59,16 +58,14 @@ rule normalize:
         expand('%s/{hic_map}' %HIC_DATA_DIR, hic_map=HIC_MAPS_BASE)
     params:
         row_offset = HIC_ROW_OFFSET,
-        col_offset = HIC_COL_OFFSET,
-        out_dir = NORM_HIC_DIR
+        col_offset = HIC_COL_OFFSET
     output:
-        expand('%s/{hic_map}.dmat' %NORM_HIC_DIR, hic_map=HIC_MAPS_BASE)
+        expand('%s/{hic_map}.dmat' %HIC_DATA_DIR, hic_map=HIC_MAPS_BASE)
     log:
         'normalizer.log'
     shell:
-        'mkdir -p {params.out_dir}; '
         '%s/normalizer.py -x {params.col_offset} ' %BIN_DIR +
-        '-y {params.row_offset} -o {params.out_dir} {input} 2> {log}'
+        '-y {params.row_offset} {input} 2> {log}'
 
 
 rule process_annotations:
@@ -97,7 +94,7 @@ if config['gene_data_format'] == 'ENSEMBLE':
 
 rule buildGraphs:
     input:
-        hic_dmat = lambda wildcards: expand('%s/{hic_map}.dmat' %(NORM_HIC_DIR),
+        hic_dmat = lambda wildcards: expand('%s/{hic_map}.dmat' %(HIC_DATA_DIR),
                 hic_map=(x for x in HIC_MAPS_BASE if x.split('/', 1)[0] ==
                 wildcards.organism)),
         annotation_file = lambda wildcards: ['%s.annotation' %x.rsplit('.',
