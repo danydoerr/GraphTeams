@@ -7,24 +7,26 @@ import re
 
 BIN_DIR = config['bin_dir']
 
-HIC_DATA_DIR = config['hic_data_dir']
 ORGANISMS = sorted(basename(x) for x in glob('%s/*' %HIC_DATA_DIR) if isdir(x))
 ORG_SHORT = '_'.join(map(lambda x: x[:3].lower(), ORGANISMS))
-HIC_MAPS_BASE_ORIG = sorted(map(lambda y: join(*(y.split('/')[
+
+HIC_DATA_DIR = config['hic_data_dir']
+HIC_MAPS_BASE = sorted(map(lambda y: join(*(y.split('/')[
         len(HIC_DATA_DIR.split('/')):])), chain(*(glob(
         '%s/%s/*%s' %(HIC_DATA_DIR, x, config['hic_file_ending'])) for x in
         ORGANISMS))))
+HIC_FORMAT = config['hic_map_format']
+HIC_ROW_OFFSET = 0
+HIC_COL_OFFSET = 0
 
-HIC_RES_PAT = re.compile('.*\.(\d+)\.txt$')
-HIC_RES_ALL = set(map(lambda x: int(HIC_RES_PAT.match(x).group(1)), HIC_MAPS_BASE_ORIG))
-HIC_RES = min(HIC_RES_ALL)
-HIC_TO_RESIZE = list(filter(lambda x: not x.endswith('%s.txt' %HIC_RES), HIC_MAPS_BASE_ORIG))
-HIC_NOT_TO_RESIZE = list(filter(lambda x: x.endswith('%s.txt' %HIC_RES), HIC_MAPS_BASE_ORIG))
-HIC_AFTER_RESIZE = list(map(lambda x: '%s.resized' %x, HIC_TO_RESIZE))
-HIC_MAPS_BASE = HIC_AFTER_RESIZE + HIC_NOT_TO_RESIZE
+if HIC_FORMAT == 'DIXON':
+    HIC_ROW_OFFSET = config.get('hic_row_offset', 1)
+    HIC_COL_OFFSET = config.get('hic_col_offset', 1)
+elif HIC_FORMAT == 'HOMER':
+    HIC_ROW_OFFSET = config.get('hic_row_offset', 1)
+    HIC_COL_OFFSET = config.get('hic_col_offset', 2)
 
 NORM_HIC_DIR = config['normalized_data_dir']
-TRUNC_HIC_DIR = config['truncated_data_dir']
 GRAPH_DATA_DIR = config['graph_data_dir']
 SEQ_GRAPH_DATA_DIR = config['graph_data_dir'] + '_seq'
 
@@ -46,39 +48,27 @@ rule all:
     input:
         expand('%s/%s_d{delta}.csv' %(TEAMS_DIR, ORG_SHORT), delta=DELTA)
 
+
 rule all_sequential: 
     input:
         expand('%s/%s_d{delta}.csv' %(SEQ_TEAMS_DIR, ORG_SHORT), delta=DELTA)
 
-rule cutMaps:
-    input:
-        '%s/{organism}/{hic_map}' %HIC_DATA_DIR
-    output:
-        temp('%s/{organism}/{hic_map}' %TRUNC_HIC_DIR)
-    shell:
-        'mkdir -p `dirname {output}`; tail -n +3 {input} | cut -f2- > {output}'
 
-
-rule resizeMaps:
-    input:
-        '%s/{hic_map}' %TRUNC_HIC_DIR
-    params:
-        new_resolution = HIC_RES
-    output:
-        temp('%s/{hic_map}.resized' %TRUNC_HIC_DIR)
-    shell:
-        '%s/ResChanger.py {params.new_resolution} {input}' %BIN_DIR
-
-
-rule normalizeMaps:
+rule normalize:
     input:
         expand('%s/{hic_map}' %TRUNC_HIC_DIR, hic_map=HIC_MAPS_BASE)
+    params:
+        row_offset = HIC_ROW_OFFSET,
+        col_offset = HIC_COL_OFFSET,
+        out_dir = NORM_HIC_DIR
     output:
         expand('%s/{hic_map}.dmat' %NORM_HIC_DIR, hic_map=HIC_MAPS_BASE)
+    log:
+        'normalizer.log'
     shell:
-        'mkdir -p `dirname {output}`; %s/Normalizer.py {input};' %BIN_DIR +
-        'for organism in %s;' %' '.join(ORGANISMS) +
-        'do mv %s/"$organism"/*.dmat %s/"$organism"/ ; done' %(TRUNC_HIC_DIR, NORM_HIC_DIR)
+        'mkdir -p {params.out_dir}; '
+        '%s/normalizer.py -x {params.col_offset} ' %BIN_DIR +
+        '-y {params.row_offset} -o {params.out_dir} {input} 2> {log}'
 
 
 rule skipHeader:
@@ -123,14 +113,17 @@ rule buildGraphs:
                 wildcards.organism))],
         homology_table = '%s/homology_%s.csv' %(GENE_DATA_DIR, ORG_SHORT)
     params:
-        bin_size = HIC_RES
+        mx_delta = max(DELTA),
+        hic_format = HIC_FORMAT,
     output:
-        '%s/{organism}.ml' %(GRAPH_DATA_DIR)
+        '%s/{organism}_d{delta,\d+}.ml' %(GRAPH_DATA_DIR, max(DELTA))
+    log:
+        'hic_to_graph.log'
     shell:
         'mkdir -p %s;' %GRAPH_DATA_DIR + 
-        '%s/ParseToGraphml.py -s {params.bin_size} ' %BIN_DIR +
-        '{input.annotation_file} {input.homology_table} {output} '
-        '{input.hic_dmat}'
+        '%s/hic_to_graph.py -d {params.delta} -f {params.hic_format}' %BIN_DIR +
+        ' {input.annotation_file} {input.homology_table} {input.hic_dmat} > '
+        '{output} 2> {log}'
 
 
 rule findTeams:
@@ -145,21 +138,21 @@ rule findTeams:
         '%s/graph_teams.py -d {wildcards.delta} {input} > {output}' %BIN_DIR
 
 
-rule buildSequentialGraphs:
-    input:
-        hic_dmat = lambda wildcards: expand('%s/{hic_map}.dmat' %(TRUNC_HIC_DIR), hic_map=(x for x in HIC_MAPS_BASE if x.split('/', 1)[0] == wildcards.organism)),
-        annotation_file = lambda wildcards: ['%s.annotation' %x.rsplit('.', 1)[0] for x in
-                HOMOLOGY_MAPS if x.rsplit('/', 2)[-2] == wildcards.organism],
-        homology_table = '%s/homology_%s.csv' %(GENE_DATA_DIR, ORG_SHORT)
-    params:
-        bin_size = HIC_RES
-    output:
-        '%s/{organism}.ml' %(SEQ_GRAPH_DATA_DIR)
-    shell:
-        'mkdir -p %s;' %SEQ_GRAPH_DATA_DIR + 
-        '%s/SeqGraphMaker.py {params.bin_size} ' %BIN_DIR +
-        '{input.annotation_file} {input.homology_table} {output} '
-        '{input.hic_dmat}'
+#rule buildSequentialGraphs:
+#    input:
+#        hic_dmat = lambda wildcards: expand('%s/{hic_map}.dmat' %(TRUNC_HIC_DIR), hic_map=(x for x in HIC_MAPS_BASE if x.split('/', 1)[0] == wildcards.organism)),
+#        annotation_file = lambda wildcards: ['%s.annotation' %x.rsplit('.', 1)[0] for x in
+#                HOMOLOGY_MAPS if x.rsplit('/', 2)[-2] == wildcards.organism],
+#        homology_table = '%s/homology_%s.csv' %(GENE_DATA_DIR, ORG_SHORT)
+#    params:
+#        bin_size = HIC_RES
+#    output:
+#        '%s/{organism}.ml' %(SEQ_GRAPH_DATA_DIR)
+#    shell:
+#        'mkdir -p %s;' %SEQ_GRAPH_DATA_DIR + 
+#        '%s/SeqGraphMaker.py {params.bin_size} ' %BIN_DIR +
+#        '{input.annotation_file} {input.homology_table} {output} '
+#        '{input.hic_dmat}'
 
 
 rule findStringTeams:

@@ -12,15 +12,15 @@ import numpy as np
 LOG = logging.getLogger(__name__)
 LOG.setLevel(logging.DEBUG)
 
-def toFlt(m, xoffset=0, yoffset=0):
+def toFlt(m, row_offset=0, column_offset=0):
     ''' constructs a numpy float array from given input matrix '''
     x = len(m)
-    y = len(m[xoffset])
-    ary = np.full((x-xoffset, y-yoffset), float('-inf'))
+    y = len(m[row_offset])
+    ary = np.full((x-row_offset, y-column_offset), float('-inf'))
     for i in xrange(len(ary)):
         for j in xrange(len(ary[i])):
             if m[i][j] != 'NULL':
-                ary[i][j]  = float(m[i + xoffset][j + yoffset]) 
+                ary[i][j]  = float(m[i + row_offset][j + column_offset]) 
     return ary
 
 def computeAvgMax(m):
@@ -57,12 +57,12 @@ def computeAvgMax(m):
 
 
 def normalizeMap(m, c):
-    '''normalize a Hi-C map'''
+    ''' normalize a Hi-C map '''
     return c * m
 
-def writeMap(m, orig_m, xoffset, yoffset, out):
-    ''' print Hi-C map to output'''
-    for k in xrange(xoffset):
+def writeMap(m, orig_m, row_offset, column_offset, out):
+    ''' print Hi-C map to output '''
+    for k in xrange(row_offset):
         for l in xrange(len(orig_m[k])):
             out.write(orig_m[k][l])
             if l + 1 != len(orig_m[k]):
@@ -70,8 +70,8 @@ def writeMap(m, orig_m, xoffset, yoffset, out):
         out.write('\n')
 
     for k in xrange(len(m)):
-        for l in xrange(yoffset):
-            out.write(orig_m[k+xoffset][l])
+        for l in xrange(column_offset):
+            out.write(orig_m[k+row_offset][l])
             out.write('\t')
 
         for l in xrange(len(m[0])):
@@ -90,12 +90,12 @@ if __name__ == '__main__':
     parser.add_argument('-o', '--out_dir', type=str, default=None, 
             help='Change output directory for normalized matrizes. By ' + \
                     'default, the directory of the input matrices is used. ')
-    parser.add_argument('-x', '--row_offset', type=int, default=0, 
-            help='Indicate that the <x> first rows of the matrix are ' + \
-                    'row headers')
-    parser.add_argument('-y', '--column_offset', type=int, default=0, 
-            help='Indicate that the <y> first columns of the matrix are ' + \
+    parser.add_argument('-x', '--column_offset', type=int, default=0, 
+            help='Indicate that the <x> first columns of the matrix are ' + \
                     'column names')
+    parser.add_argument('-y', '--row_offset', type=int, default=0, 
+            help='Indicate that the <y> first rows of the matrix are ' + \
+                    'row headers')
     parser.add_argument('map', metavar='Hi-C map', type=str, nargs='+', 
             help='path of all Hi-C maps to consider for the normalization')
 
@@ -110,8 +110,8 @@ if __name__ == '__main__':
 
     LOG.info('begin loading Hi-C maps')
     mapList = [list(csv.reader(open(i), delimiter='\t'))  for i in args.map]
-    arys = map(partial(toFlt, xoffset=args.row_offset,
-        yoffset=args.column_offset), mapList)
+    arys = map(partial(toFlt, row_offset=args.row_offset,
+        column_offset=args.column_offset), mapList)
     LOG.info('loading done')
 
     LOG.info('computing average distances')

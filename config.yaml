@@ -2,6 +2,10 @@
 # PLEASE ADJUST THE FOLLOWING PARAMETERS --------------------------------------
 
 hic_file_ending: .txt
+hic_map_format: DIXON  # alternative is HOMER
+# set hic row/column offset explicitely
+# hic_row_offset: 0
+# hic_col_offset: 0
 gene_data_file_ending: .txt
 delta: [50, 100]
 go_reference_species: human
@@ -15,7 +19,6 @@ go_sample_max_cluster_size: 25
 
 bin_dir: scripts
 hic_data_dir: data/hic_maps
-truncated_data_dir: truncated
 normalized_data_dir: normalized_hic_maps
 graph_data_dir: graphs
 gene_data_dir: data/genomic
