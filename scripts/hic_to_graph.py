@@ -93,14 +93,14 @@ def readXSegments(data, data_type):
 
             if prev != None:
                 if prev[0] != cur[0]:
-                    res.append((prev[0], prev[1], prev[1]+seq_len, i-3))
+                    res.append((prev[0], prev[1], prev[1]+seq_len-1, i-3))
                 else:
-                    res.append((prev[0], prev[1], cur[1], i-3))
+                    res.append((prev[0], prev[1], cur[1]-1, i-3))
                     seq_len = cur[1]-prev[1]
             prev = cur
 
         if prev != None:
-            res.append((prev[0], prev[1], prev[1]+seq_len, len(line)-3))
+            res.append((prev[0], prev[1], prev[1]+seq_len-1, len(line)-3))
 
     return res
 
@@ -157,15 +157,15 @@ def readYSegments(data, data_type):
 
             if prev != None:
                 if prev[0] != cur[0]:
-                    res.append((prev[0], prev[1], prev[1]+seq_len, c))
+                    res.append((prev[0], prev[1], prev[1]+seq_len-1, c))
                 else:
-                    res.append((prev[0], prev[1], cur[1], c))
+                    res.append((prev[0], prev[1], cur[1]-1, c))
                     seq_len = cur[1]-prev[1]
             prev = cur
 
             c += 1
         if prev != None:
-            res.append((prev[0], prev[1], prev[1]+seq_len, c))
+            res.append((prev[0], prev[1], prev[1]+seq_len-1, c))
 
     return res
 
@@ -234,7 +234,7 @@ def parseHiCMapAndWriteGraph(hic_map_files, data_type, genes, homologies, delta,
                     wp = float(line[jp])
                     w = wp
                     if x_segments[j][0] == y_segments[i][0]:
-                        if x_segments[j][1] > y_segments[j][1]:
+                        if x_segments[j][1] > y_segments[i][1]:
                             d = genes[xsegs2gene[j][-1]][2]-genes[ysegs2gene[i][0]][1]
                             w = w/(x_segments[j][2]-y_segments[i][1]) * d
                         else:
