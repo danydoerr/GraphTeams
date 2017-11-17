@@ -156,7 +156,7 @@ def division(i, S, Gi, NG):
 
 if __name__ == '__main__':
     parser = ArgumentParser(formatter_class=ADHF)
-    parser.add_argument('-d', '--delta', type=int, default=DEFAULT_DELTA,
+    parser.add_argument('-d', '--delta', type=float, default=DEFAULT_DELTA,
             help='max-distance threshold \delta')
     parser.add_argument('-s', '--simplify', action='store_true',
             help='Instead of finding delta-teams on original graph, ' + \
