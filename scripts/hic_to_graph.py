@@ -207,7 +207,7 @@ def parseHiCMapAndWriteGraph(hic_map_files, data_type, genes, homologies, delta,
         hclass = homologies.get(genes[i][-1], genes[i][-1])
         # create node for gene
         out.write(('    node [\n        id %s\n        label %s\n        ' + \
-                'class        %s\n    ]\n') %(i, i, hclass))
+                'class "%s"\n    ]\n') %(i, i, hclass))
 
     
     # add edges to the graph
@@ -259,7 +259,7 @@ def parseHiCMapAndWriteGraph(hic_map_files, data_type, genes, homologies, delta,
                             continue
 
                         out.write(('    edge [\n        source %s\n        ' + \
-                                'target       %s\n        weight %s\n    ]' + \
+                                'target %s\n        weight %s\n    ]' + \
                                 '\n') %(x, y, w))
             i += 1 
                     
@@ -294,7 +294,7 @@ if __name__ == '__main__':
 
     # setup logging
     ch = logging.StreamHandler(stderr)
-    ch.setLevel(logging.ERROR)
+    ch.setLevel(logging.INFO)
     ch.setFormatter(logging.Formatter('%(levelname)s: %(message)s'))
     LOG.addHandler(ch)
 

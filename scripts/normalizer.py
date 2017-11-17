@@ -103,7 +103,7 @@ if __name__ == '__main__':
 
     # setup logging
     ch = logging.StreamHandler(stderr)
-    ch.setLevel(logging.ERROR)
+    ch.setLevel(logging.INFO)
     ch.setFormatter(logging.Formatter('%(levelname)s: %(message)s'))
     LOG.addHandler(ch)
 
