@@ -12,6 +12,7 @@ import numpy as np
 LOG = logging.getLogger(__name__)
 LOG.setLevel(logging.DEBUG)
 
+
 def toFlt(m, row_offset=0, column_offset=0):
     ''' constructs a numpy float array from given input matrix '''
     x = len(m)
@@ -23,17 +24,17 @@ def toFlt(m, row_offset=0, column_offset=0):
                 ary[i][j]  = float(m[i + row_offset][j + column_offset]) 
     return ary
 
-def computeAvgMax(m):
+
+def toDist(m):
     ''' compute the average of all maximum entries of all matrices '''
-    matMax = float('-inf')
+
+    new_m = m - np.min(m[m > float('-inf')])
+    matMax = np.max(new_m)
     diagEntrs = []
 
-    for i in xrange(len(m)):
-        for j in xrange(len(m[i])):
-            if m[i][j] > matMax:
-                matMax = m[i][j]
-            if j == i + 1 and m[i][j] > float('-inf'):
-                diagEntrs.append(m[i][j])
+    for i in xrange(len(new_m)-1):
+        if new_m[i][i+1] > float('-inf'):
+            diagEntrs.append(new_m[i][i+1])
 
     # compute the average value on the diagonal above the main diagonal of
     # every chromosome
@@ -41,19 +42,16 @@ def computeAvgMax(m):
     if len(diagEntrs):
         avgAbDiag = sum(diagEntrs)/len(diagEntrs)
 
-    # change entries to distances
-    for i in xrange(len(m)):
-        for j in xrange(len(m[i])):
-            if m[i][j] > float('-inf'):
-                m[i][j] = matMax + 1.0 - m[i][j]
-            # for the main diagonal of interchromosomal maps we do not need to
-            # insert artificial distances
-            if i == j and len(m) == len(m[i]):
-                if m[i][j] > float('-inf'):
-                    m[i][j] = matMax + 1.0 - m[i][j]
-                else:
-                    m[i][j] = matMax + 1.0 - avgAbDiag
-    return matMax
+    new_m = matMax - new_m
+
+    # increase resolution of distances for the main diagonal of
+    # intrachromosomal maps 
+    if len(new_m) == len(new_m[0]):
+        # change entries to distances
+        for i in xrange(len(new_m)):
+            if new_m[i][i] == float('inf'):
+                new_m[i][i] = matMax - avgAbDiag
+    return new_m, matMax
 
 
 def normalizeMap(m, c):
@@ -108,24 +106,27 @@ if __name__ == '__main__':
     LOG.addHandler(ch)
 
 
-    LOG.info('begin loading Hi-C maps')
+    LOG.info('begin loading Hi-C maps..')
     mapList = [list(csv.reader(open(i), delimiter='\t'))  for i in args.map]
     arys = map(partial(toFlt, row_offset=args.row_offset,
         column_offset=args.column_offset), mapList)
-    LOG.info('loading done')
+    LOG.info('...done')
 
-    LOG.info('computing average distances')
-    maxInMats = map(computeAvgMax, arys)
-    avgMax = sum(maxInMats)/len(maxInMats) 
-    LOG.info('done')
+    LOG.info('transforming into distance matrix...')
+    arys_dist, maxInMats = zip(*map(toDist, arys))
+    LOG.info('...done')
+    avgMax = sum(maxInMats)/len(maxInMats)
 
-    for i in xrange(len(arys)):
+    for i in xrange(len(arys_dist)):
         LOG.info('normalizing %s' %args.map[i])
         # get normalization constant 
         # NOTE TIZIAN: Taking the average here leads to smaller distances in
         # the matrices. I personally prefer this Normalization
         c = avgMax / maxInMats[i]
-        m = normalizeMap(arys[i], c)
+        m = normalizeMap(arys_dist[i], c)
+        LOG.info('\tfinal average distance\t%s' %np.mean(m))
+        LOG.info('\tfinal maximum distance\t%s' %np.max(m))
+
         out_file = '%s.dmat' %args.map[i]
         if args.out_dir:
             out_file = join(args.out_dir, basename(out_file))
