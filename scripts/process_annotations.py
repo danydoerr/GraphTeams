@@ -67,10 +67,14 @@ def readGFF3Data(data):
     while i < len(anns):
         anns[i] = (chrMap.get(anns[i][0], anns[i][0]), ) + anns[i][1:]
         # check for overlaps and remove smaller gene annotation
-        if i > 0 and anns[i-1][0] == anns[i][0] and anns[i-1][2] >= anns[i][2]:
-            del anns[i]
-        else:
-            i += 1
+        if i > 0 and anns[i-1][0] == anns[i][0]:
+            if anns[i-1][1] == anns[i][1]:
+                del anns[i-1]
+                continue
+            elif anns[i-1][2] >= anns[i][2]:
+                del anns[i]
+                continue
+        i += 1
             
     # inefficient, but hey, data is not that large
     anns.sort()

@@ -195,7 +195,7 @@ def mapSegs2Genes(segments, genes):
 def parseHiCMapAndWriteGraph(hic_map_files, data_type, genes, homologies, delta,
         out):
     # write the header
-    out.write('graph [\n    directed 0\n')
+    out.write('graph [\n\tdirected 0\n')
 
     xoffset = 0
     if data_type == 'DIXON':
@@ -206,8 +206,8 @@ def parseHiCMapAndWriteGraph(hic_map_files, data_type, genes, homologies, delta,
     for i in xrange(len(genes)):
         hclass = homologies.get(genes[i][-1], genes[i][-1])
         # create node for gene
-        out.write(('    node [\n        id %s\n        label %s\n        ' + \
-                'class "%s"\n    ]\n') %(i, i, hclass))
+        out.write('\tnode [\n\tid %s\n\tlabel %s\n\tclass "%s"\n\t]\n' %(i, i,
+            hclass))
 
     
     # add edges to the graph
@@ -235,10 +235,12 @@ def parseHiCMapAndWriteGraph(hic_map_files, data_type, genes, homologies, delta,
                     w = wp
                     if x_segments[j][0] == y_segments[i][0]:
                         if x_segments[j][1] > y_segments[i][1]:
-                            d = genes[xsegs2gene[j][-1]][2]-genes[ysegs2gene[i][0]][1]
+                            d = abs(genes[xsegs2gene[j][-1]][2] -
+                                    genes[ysegs2gene[i][0]][1])
                             w = w/(x_segments[j][2]-y_segments[i][1]) * d
                         else:
-                            d = genes[ysegs2gene[i][-1]][2]-genes[xsegs2gene[j][0]][1]
+                            d = abs(genes[ysegs2gene[i][-1]][2] -
+                                    genes[xsegs2gene[j][0]][1])
                             w = w/(y_segments[i][2]-x_segments[j][1]) * d
                     if w  > delta:
                         continue
@@ -251,16 +253,15 @@ def parseHiCMapAndWriteGraph(hic_map_files, data_type, genes, homologies, delta,
                         if gj[0] == gi[0]:
                             if gj[1] > gi[1]:
                                 w = w/(x_segments[j][2]  - y_segments[i][1]) * \
-                                        (gj[2]-gi[1])
+                                        abs(gj[2]-gi[1])
                             else:
                                 w = w/(y_segments[i][2]  - x_segments[j][1]) * \
-                                        (gi[2]-gj[1])
+                                        abs(gi[2]-gj[1])
                         if w > delta:
                             continue
 
-                        out.write(('    edge [\n        source %s\n        ' + \
-                                'target %s\n        weight %s\n    ]' + \
-                                '\n') %(x, y, w))
+                        out.write(('\tedge [\n\tsource %s\n\ttarget ' + \
+                                '%s\n\tweight %.4f\n\t]\n') %(x, y, w))
             i += 1 
                     
     # Finish the output file
@@ -302,6 +303,7 @@ if __name__ == '__main__':
     genes = readAnnotations(open(args.annotation_file))
     homologies = readHomologies(open(args.homology_table))
 
+    out = stdout
     parseHiCMapAndWriteGraph(args.hic_map, args.format, genes, homologies,
-            args.delta, stdout)
+            args.delta, out)
     
