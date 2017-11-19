@@ -65,7 +65,7 @@ rule normalize:
         'normalizer.log'
     shell:
         '%s/normalizer.py -x {params.col_offset} ' %BIN_DIR +
-        '-y {params.row_offset} {input} 2> tee {log}'
+        '-y {params.row_offset} {input} 2> {log}'
 
 
 rule process_annotations:
@@ -112,7 +112,7 @@ rule buildGraphs:
         'mkdir -p %s;' %GRAPH_DATA_DIR + 
         '%s/hic_to_graph.py -d {params.mx_delta} -f {params.hic_format}' %BIN_DIR +
         ' {input.annotation_file} {input.homology_table} {input.hic_dmat} > '
-        '{output} 2> tee {log}'
+        '{output} 2> {log}'
 
 
 rule findTeams:
