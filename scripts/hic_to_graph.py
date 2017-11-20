@@ -273,7 +273,7 @@ if __name__ == '__main__':
     # setting up the argument parser
     parser = ArgumentParser(description='Produces a file in graphml format ' + \
             'for the gene teams algorithm', formatter_class=ADHF)
-    parser.add_argument('-d', '--delta', default=maxint, type=int, 
+    parser.add_argument('-d', '--delta', default=maxint, type=float, 
             help='Ignore matrix values larger than DELTA to build the graph')
     parser.add_argument('-f', '--format', default = HIC_DATA_FORMATS[0], type=str,
             choices = HIC_DATA_FORMATS, 
