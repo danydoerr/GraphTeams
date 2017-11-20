@@ -107,7 +107,7 @@ rule buildGraphs:
     output:
         '%s/{organism}_d%s.ml' %(GRAPH_DATA_DIR, max(DELTA))
     log:
-        'hic_to_graph.log'
+        '%s/{organism}_d%s.log' %(GRAPH_DATA_DIR, max(DELTA))
     shell:
         'mkdir -p %s;' %GRAPH_DATA_DIR + 
         '%s/hic_to_graph.py -d {params.mx_delta} -f {params.hic_format}' %BIN_DIR +
