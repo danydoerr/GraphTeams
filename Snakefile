@@ -58,13 +58,14 @@ rule normalize:
         expand('%s/{hic_map}' %HIC_DATA_DIR, hic_map=HIC_MAPS_BASE)
     params:
         row_offset = HIC_ROW_OFFSET,
-        col_offset = HIC_COL_OFFSET
+        col_offset = HIC_COL_OFFSET,
+        ntype = config.get('normalization_type', 'MAX')
     output:
         expand('%s/{hic_map}.dmat' %HIC_DATA_DIR, hic_map=HIC_MAPS_BASE)
     log:
         'normalizer.log'
     shell:
-        '%s/normalizer.py -x {params.col_offset} ' %BIN_DIR +
+        '%s/normalizer.py -t {params.ntype} -x {params.col_offset} ' %BIN_DIR +
         '-y {params.row_offset} {input} 2> {log}'
 
 

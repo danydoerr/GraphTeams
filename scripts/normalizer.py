@@ -4,6 +4,7 @@ from sys import stdout, stderr, exit
 from argparse import ArgumentParser
 from os.path import basename, join
 from functools import partial
+from math import isinf
 import logging
 import csv
 
@@ -11,6 +12,9 @@ import numpy as np
 
 LOG = logging.getLogger(__name__)
 LOG.setLevel(logging.DEBUG)
+
+NORMALIZATION_TYPES = ['MAX', 'AVG']
+
 
 
 def toFlt(m, row_offset=0, column_offset=0):
@@ -49,14 +53,15 @@ def toDist(m):
     if len(new_m) == len(new_m[0]):
         # change entries to distances
         for i in xrange(len(new_m)):
-            if new_m[i][i] == float('inf'):
+            if isinf(new_m[i][i]):
                 new_m[i][i] = matMax - avgAbDiag
-    return new_m, matMax
+    return new_m
 
 
 def normalizeMap(m, c):
     ''' normalize a Hi-C map '''
     return c * m
+
 
 def writeMap(m, orig_m, row_offset, column_offset, out):
     ''' print Hi-C map to output '''
@@ -68,6 +73,7 @@ def writeMap(m, orig_m, row_offset, column_offset, out):
         out.write('\n')
 
     for k in xrange(len(m)):
+
         for l in xrange(column_offset):
             out.write(orig_m[k+row_offset][l])
             out.write('\t')
@@ -80,6 +86,7 @@ def writeMap(m, orig_m, row_offset, column_offset, out):
         # check if we have reached the last line
         if k + 1 != len(m):
             out.write('\n')
+
 
 if __name__ == '__main__':
 
@@ -94,6 +101,9 @@ if __name__ == '__main__':
     parser.add_argument('-y', '--row_offset', type=int, default=0, 
             help='Indicate that the <y> first rows of the matrix are ' + \
                     'row headers')
+    parser.add_argument('-t', '--type', type=str, choices=NORMALIZATION_TYPES,
+            default=NORMALIZATION_TYPES[0],
+            help='Choose between different types of normalization')
     parser.add_argument('map', metavar='Hi-C map', type=str, nargs='+', 
             help='path of all Hi-C maps to consider for the normalization')
 
@@ -113,17 +123,27 @@ if __name__ == '__main__':
     LOG.info('...done')
 
     LOG.info('transforming into distance matrix...')
-    arys_dist, maxInMats = zip(*map(toDist, arys))
+    arys_dist = map(toDist, arys)
     LOG.info('...done')
-    avgMax = sum(maxInMats)/len(maxInMats)
+
+    c = [0] * len(arys_dist)
+    if args.type == 'MAX':
+        maxInMats = map(np.max, arys_dist)
+        avgMax = sum(maxInMats)/len(maxInMats)
+        c = map(lambda x: avgMax/x, maxInMats)
+    elif args.type == 'AVG':
+        meanInMats = map(lambda x: np.mean(x[x < float('inf')]), arys_dist)
+        avgMean = sum(meanInMats)/len(meanInMats)
+        c = map(lambda x: avgMean/x, meanInMats)
+    else:
+        raise Exception, 'Normalization type %s implemented' %args.type
 
     for i in xrange(len(arys_dist)):
         LOG.info('normalizing %s' %args.map[i])
         # get normalization constant 
         # NOTE TIZIAN: Taking the average here leads to smaller distances in
         # the matrices. I personally prefer this Normalization
-        c = avgMax / maxInMats[i]
-        m = normalizeMap(arys_dist[i], c)
+        m = normalizeMap(arys_dist[i], c[i])
         LOG.info('\tfinal average distance\t%s' %np.mean(m))
         LOG.info('\tfinal maximum distance\t%s' %np.max(m))
 
