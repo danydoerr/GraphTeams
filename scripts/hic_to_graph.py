@@ -193,7 +193,7 @@ def mapSegs2Genes(segments, genes):
 
 
 def parseHiCMapAndWriteGraph(hic_map_files, data_type, genes, homologies, delta,
-        out):
+        doSequential, out):
     # write the header
     out.write('graph [\n\tdirected 0\n')
 
@@ -220,48 +220,108 @@ def parseHiCMapAndWriteGraph(hic_map_files, data_type, genes, homologies, delta,
         x_segments = readXSegments(data, data_type)
         xsegs2gene = mapSegs2Genes(x_segments, genes)
 
+        isSymmetric = x_segments == y_segments
+
+        if doSequential and not isSymmetric:
+            LOG.warning(('Sequential mode, segments of the X and Y axis ' + \
+                    'are different, thus skipping file %s') %f)
+            continue
+
+        last_gene = -1
         # segment counter
         i = 0
         for line in data:
-            # continue with next line if no gene is associated with this segment
+            # continue with next line if no gene is associated with this
+            # segment
             if not ysegs2gene[i]:
                 i += 1
                 continue
-            for jp in xrange(xoffset, len(line)):
-                j = jp-xoffset
 
-                if line[jp] and line[jp] != 'NULL' and xsegs2gene[j]:
-                    wp = float(line[jp])
-                    w = wp
-                    if x_segments[j][0] == y_segments[i][0]:
-                        if x_segments[j][1] > y_segments[i][1]:
-                            d = abs(genes[xsegs2gene[j][-1]][2] -
-                                    genes[ysegs2gene[i][0]][1])
-                            w = w/(x_segments[j][2]-y_segments[i][1]) * d
-                        else:
-                            d = abs(genes[ysegs2gene[i][-1]][2] -
-                                    genes[xsegs2gene[j][0]][1])
-                            w = w/(y_segments[i][2]-x_segments[j][1]) * d
-                    if w  > delta:
-                        continue
+            if doSequential:
+                std_w = 0
+                if not line[i+xoffset] or line[i+xoffset] == 'NULL':
+                    LOG.error(('Matrix entry at position (%s, %s) is empty' + \
+                        ' or NULL, unable to assign distances to genes ' + \
+                        'within segment %s') %(i, i, y_segments[i]))
+                else:
+                    std_w = float(line[i+xoffset])
 
-                    for x, y in product(xsegs2gene[j], ysegs2gene[i]):
-                        gj = genes[x]
-                        gi = genes[y]
+                gi = genes[ysegs2gene[i][0]]
+                if last_gene >= 0 and genes[xsegs2gene[last_gene][-1]][0] == \
+                        gi[0]:
 
+                    jp = last_gene+xoffset
+                    # XXX naive heuristic for shortest path
+                    # go along the x-axis, add standard distance (this is
+                    # written in the diagonal) as long as off-diagonal entries
+                    # are empty or NULL 
+                    while jp < i+xoffset and (not line[jp] or line[jp] == \
+                            'NULL'):
+                        wp += std_w 
+                        jp += 1
+
+                    if jp != i + xoffset:
+                        wp += float(line[jp])
+
+                    w = wp/(y_segments[i][2] - x_segments[last_gene][1] + 1) * \
+                            (abs(gi[2]-genes[xsegs2gene[last_gene][-1]][1])+1)
+                    out.write(('\tedge [\n\tsource %s\n\ttarget ' + \
+                            '%s\n\tweight %.4f\n\t]\n') %(xsegs2gene[
+                                last_gene][-1], ysegs2gene[i][0], w))
+
+                wp = std_w/(y_segments[i][2] - y_segments[i][1] + 1)
+                x = ysegs2gene[i][0]
+                for y in ysegs2gene[i][1:]:
+                    out.write(('\tedge [\n\tsource %s\n\ttarget ' + \
+                            '%s\n\tweight %.4f\n\t]\n') %(x, y, wp *
+                                (abs(genes[y][2] - genes[x][1])+1)))
+                    x = y
+                last_gene = i
+            else:
+                jps = xrange(xoffset, len(line))
+                if isSymmetric:
+                    # if symmetric, then only uses upper triangle of the
+                    # distance matrix
+                    jps = xrange(i+xoffset, len(line))
+
+                for jp in jps:
+                    j = jp-xoffset
+
+                    if line[jp] and line[jp] != 'NULL' and xsegs2gene[j]:
+                        wp = float(line[jp])
                         w = wp
-                        if gj[0] == gi[0]:
-                            if gj[1] > gi[1]:
-                                w = w/(x_segments[j][2]  - y_segments[i][1]) * \
-                                        abs(gj[2]-gi[1])
+                        if x_segments[j][0] == y_segments[i][0]:
+                            if x_segments[j][1] > y_segments[i][1]:
+                                d = abs(genes[xsegs2gene[j][-1]][2] -
+                                        genes[ysegs2gene[i][0]][1])+1
+                                w = w/(x_segments[j][2]-y_segments[i][1]+1) * d
                             else:
-                                w = w/(y_segments[i][2]  - x_segments[j][1]) * \
-                                        abs(gi[2]-gj[1])
-                        if w > delta:
+                                d = abs(genes[ysegs2gene[i][-1]][2] -
+                                        genes[xsegs2gene[j][0]][1])+1
+                                w = w/(y_segments[i][2]-x_segments[j][1]+1) * d
+                        if w  > delta:
                             continue
 
-                        out.write(('\tedge [\n\tsource %s\n\ttarget ' + \
-                                '%s\n\tweight %.4f\n\t]\n') %(x, y, w))
+                        for x, y in product(xsegs2gene[j], ysegs2gene[i]):
+                            gj = genes[x]
+                            gi = genes[y]
+
+                            w = wp
+                            if gj[0] == gi[0]:
+                                if gj[1] > gi[1]:
+                                    w = w/(x_segments[j][2]  - \
+                                            y_segments[i][1]) * \
+                                            abs(gj[2]-gi[1])
+                                else:
+                                    w = w/(y_segments[i][2] - \
+                                            x_segments[j][1]) * \
+                                            abs(gi[2]-gj[1])
+
+                            if gi == gj or w > delta:
+                                continue
+
+                            out.write(('\tedge [\n\tsource %s\n\ttarget ' + \
+                                    '%s\n\tweight %.4f\n\t]\n') %(x, y, w))
             i += 1 
                     
     # Finish the output file
@@ -278,11 +338,14 @@ if __name__ == '__main__':
     parser.add_argument('-f', '--format', default = HIC_DATA_FORMATS[0], type=str,
             choices = HIC_DATA_FORMATS, 
             help='Format of the input Hi-C maps files')
+    parser.add_argument('-s', '--sequential', action='store_true', 
+            help='Construct graph using only distances along the diagonal, ' + \
+                    'representing the linear genome sequence.')
     parser.add_argument('annotation_file', type=str, 
             help='Path to GFF3 file containing all gene annotations')
     parser.add_argument('homology_table', type=str, 
             help='Path to the file that contains names of homologous ' + \
-                    'genes of a gene family.  Should be a tab separated ' + \
+                    'genes of a gene family. It should be a tab separated ' + \
                     'file in which each line is a gene family and each ' + \
                     'column contains the names of homologous genes of a ' + \
                     'species.')
@@ -305,5 +368,5 @@ if __name__ == '__main__':
 
     out = stdout
     parseHiCMapAndWriteGraph(args.hic_map, args.format, genes, homologies,
-            args.delta, out)
+            args.delta, args.sequential, out)
     

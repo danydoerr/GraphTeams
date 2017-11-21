@@ -95,7 +95,7 @@ if config['gene_data_format'] == 'ENSEMBLE':
 
 rule buildGraphs:
     input:
-        hic_dmat = lambda wildcards: expand('%s/{hic_map}.dmat' %(HIC_DATA_DIR),
+        hic_dmat = lambda wildcards: expand('%s/{hic_map}.dmat' %HIC_DATA_DIR,
                 hic_map=(x for x in HIC_MAPS_BASE if x.split('/', 1)[0] ==
                 wildcards.organism)),
         annotation_file = lambda wildcards: ['%s.annotation' %x.rsplit('.',
@@ -108,7 +108,7 @@ rule buildGraphs:
     output:
         '%s/{organism}_d%s.ml' %(GRAPH_DATA_DIR, max(DELTA))
     log:
-        '%s/{organism}_d%s.log' %(GRAPH_DATA_DIR, max(DELTA))
+        'build_graphs_{organism}_d%s.log' %(max(DELTA))
     shell:
         'mkdir -p %s;' %GRAPH_DATA_DIR + 
         '%s/hic_to_graph.py -d {params.mx_delta} -f {params.hic_format}' %BIN_DIR +
@@ -118,7 +118,8 @@ rule buildGraphs:
 
 rule findTeams:
     input:
-        graph=expand('%s/{organism}_d%s.ml' %(GRAPH_DATA_DIR, max(DELTA)), organism=ORGANISMS)
+        graph=expand('%s/{organism}_d%s.ml' %(GRAPH_DATA_DIR, max(DELTA)),
+                organism=ORGANISMS)
     output:
         '%s/%s_d{delta,[0-9.]+}.csv' %(TEAMS_DIR, ORG_SHORT)
     benchmark:
@@ -128,28 +129,35 @@ rule findTeams:
         '%s/graph_teams.py -d {wildcards.delta} {input} > {output}' %BIN_DIR
 
 
-#rule buildSequentialGraphs:
-#    input:
-#        hic_dmat = lambda wildcards: expand('%s/{hic_map}.dmat' %(TRUNC_HIC_DIR), hic_map=(x for x in HIC_MAPS_BASE if x.split('/', 1)[0] == wildcards.organism)),
-#        annotation_file = lambda wildcards: ['%s.annotation' %x.rsplit('.', 1)[0] for x in
-#                HOMOLOGY_MAPS if x.rsplit('/', 2)[-2] == wildcards.organism],
-#        homology_table = '%s/homology_%s.csv' %(GENE_DATA_DIR, ORG_SHORT)
-#    params:
-#        bin_size = HIC_RES
-#    output:
-#        '%s/{organism}.ml' %(SEQ_GRAPH_DATA_DIR)
-#    shell:
-#        'mkdir -p %s;' %SEQ_GRAPH_DATA_DIR + 
-#        '%s/SeqGraphMaker.py {params.bin_size} ' %BIN_DIR +
-#        '{input.annotation_file} {input.homology_table} {output} '
-#        '{input.hic_dmat}'
+rule buildSequentialGraphs:
+    input:
+        hic_dmat = lambda wildcards: expand('%s/{hic_map}.dmat' %HIC_DATA_DIR,
+                hic_map=(x for x in HIC_MAPS_BASE if x.split('/', 1)[0] ==
+                wildcards.organism)),
+        annotation_file = lambda wildcards: ['%s.annotation' %x.rsplit('.',
+                1)[0] for x in HOMOLOGY_MAPS if x.rsplit('/', 2)[-2] ==
+                wildcards.organism],
+        homology_table = '%s/homology_%s.csv' %(GENE_DATA_DIR, ORG_SHORT)
+    params:
+        mx_delta = max(DELTA),
+        hic_format = HIC_FORMAT,
+    output:
+        '%s/{organism}_d%s.ml' %(SEQ_GRAPH_DATA_DIR, max(DELTA))
+    log:
+        'build_graphs_seq_{organism}_d%s.log' %(max(DELTA))
+    shell:
+        'mkdir -p %s;' %SEQ_GRAPH_DATA_DIR + 
+        '%s/hic_to_graph.py -d {params.mx_delta} -f {params.hic_format}' %BIN_DIR +
+        ' --sequential {input.annotation_file} {input.homology_table} '
+        '{input.hic_dmat} > {output} 2> {log}'
 
 
 rule findStringTeams:
     input:
-        graph=expand('%s/{organism}_d%s.ml' %(SEQ_GRAPH_DATA_DIR, max(DELTA)), organism=ORGANISMS)
+        graph=expand('%s/{organism}_d%s.ml' %(SEQ_GRAPH_DATA_DIR, max(DELTA)),
+                organism=ORGANISMS)
     output:
-        '%s/%s_d{delta}.csv' %(SEQ_TEAMS_DIR, ORG_SHORT)
+        '%s/%s_d{delta,[0-9.]+}.csv' %(SEQ_TEAMS_DIR, ORG_SHORT)
     benchmark:
         'benchmarks/teams_seq_d{delta}.txt'
     shell:
@@ -220,7 +228,7 @@ rule go_neighbor_cluster_scores:
                 GO_SAMPLE_SIZE),
         teams = '{teams_dir}/%s_d{delta}.csv' %ORG_SHORT
     output:
-        '%s/{teams_dir}/%s_d{delta}.csv' %(GO_ANALYSIS_DIR, GO_REF)
+        '%s/{teams_dir}/%s_d{delta,[0-9.]+}.csv' %(GO_ANALYSIS_DIR, GO_REF)
     shell:
         'mkdir -p %s/{wildcards.teams_dir};' %GO_ANALYSIS_DIR +
         '%s/nearest_neighbor_go_scores.py -s {input.samples} ' %BIN_DIR +
