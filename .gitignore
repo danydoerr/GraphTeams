@@ -1,3 +1,11 @@
 **/*.pyc
 .snakemake
 **/*.log
+data/*
+graphs/*
+graphs_seq/*
+teams/*
+teams_seq/*
+go_analysis/*
+benchmarks/*
+
