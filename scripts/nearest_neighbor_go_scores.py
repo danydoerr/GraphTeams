@@ -3,7 +3,7 @@
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter as ADHF
 from itertools import chain, combinations, imap
 from bisect import bisect
-from sys import stdout, stderr, exit
+from sys import stdout, stderr, exit, maxsize
 from cStringIO import StringIO
 from os.path import basename
 from random import sample
@@ -11,6 +11,17 @@ import logging
 import csv
 
 from newick_parser import Tree, Branch, Leaf
+
+
+# allow for very large fields
+__l = maxsize
+while True:
+    try:
+        csv.field_size_limit(__l)
+        break
+    except OverflowError:
+        __l /= 10
+
 
 LOG = logging.getLogger(__name__)
 LOG.setLevel(logging.DEBUG)
