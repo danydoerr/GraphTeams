@@ -2,7 +2,7 @@
 
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter as ADHF
 from sys import stderr, stdout, exit, maxint
-from itertools import product
+from itertools import product, combinations
 import logging
 import csv
 import re
@@ -302,7 +302,11 @@ def parseHiCMapAndWriteGraph(hic_map_files, data_type, genes, homologies, delta,
                         if w  > delta:
                             continue
 
-                        for x, y in product(xsegs2gene[j], ysegs2gene[i]):
+                        
+                        p = product(xsegs2gene[j], ysegs2gene[i])
+                        if isSymmetric and i == j:
+                            p = combinations(xsegs2gene[j], 2)
+                        for x, y in p:
                             gj = genes[x]
                             gi = genes[y]
 
