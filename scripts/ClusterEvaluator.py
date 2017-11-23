@@ -5,46 +5,46 @@ import argparse as args
 
 #Reads in a cluster file and parses the relevant information into a dictionary
 def readCFile(filename):
-	cFile = open(filename, "r")
+    cFile = open(filename, "r")
 
-	#Dictionary for the cluster information
-	cDict = {}
+    #Dictionary for the cluster information
+    cDict = {}
 
-	for cluster in cFile:
-		cols = cluster.split('\t')
+    for cluster in cFile:
+        cols = cluster.split('\t')
 
-		cSize = len(cols[1].split(';'))
-		cMems = cols[0].split(';')
+        cSize = len(cols[1].split(';'))
+        cMems = cols[0].split(';')
 
-		#We do not want to evaluate the header file
-		if len(cMems) > 1:
-			#Check if a cluster of the same length as the current one was found before
-			if cSize in cDict:
-				cDict[cSize].append(cMems)
-			else:
-				cDict[cSize] = [cMems]
+        #We do not want to evaluate the header file
+        if len(cMems) > 1:
+            #Check if a cluster of the same length as the current one was found before
+            if cSize in cDict:
+                cDict[cSize].append(cMems)
+            else:
+                cDict[cSize] = [cMems]
 
-	return cDict
+    return cDict
 
 #Counts the number clusters in a dictionary
 def countCs(cDict):
-	num = 0
+    num = 0
 
-	for size in cDict.values():
-		num += len(size)
+    for size in cDict.values():
+        num += len(size)
 
-	return num
+    return num
 
 #Calculates the average size of all clusters in the cluster dictionary
 def calAvgCSize(cDict):
-	allmems = 0.0
-	num = 0.0
+    allmems = 0.0
+    num = 0.0
 
-	for skey, cList in cDict.items():
-		num += len(cList)
-		allmems += float(skey) * len(cList)
+    for skey, cList in cDict.items():
+        num += len(cList)
+        allmems += float(skey) * len(cList)
 
-	return allmems / num
+    return allmems / num
 
 #Setting up the argument parser
 
@@ -52,7 +52,7 @@ parser = args.ArgumentParser(description="Evaluates the found clusters of two re
 parser.add_argument('T', metavar='3D-Results', type=str, help="Path to the file that contains the results for the tree-dimensional data. Should be in csv format")
 parser.add_argument('O', metavar='1D-Results', type=str, help="Path to the file that contains the results for the one-dimensional data. Should be in csv format")
 parser.add_argument('R', metavar='Run Times', type=str, help="Path to the file that contains the run times of the algorithm.")
-parser.add_argument('-d', '--delta', type=int, help="Delta which was chosen to produce the given results.")
+parser.add_argument('-d', '--delta', type=float, help="Delta which was chosen to produce the given results.")
 
 arguments = parser.parse_args()
 
@@ -83,24 +83,24 @@ numSubsetCs = 0
 avgKnowGain = 0.0
 
 for cSize, clusterList in oneDClusters.items():
-	currSize = int(cSize)
+    currSize = int(cSize)
 
-	for cluster in clusterList:
-		notMem = False
+    for cluster in clusterList:
+        notMem = False
 
-		for threeDCSize, cList in threeDClusters.items():
-			if int(threeDCSize) >= currSize:
-				for clust in cList:
-					for mem in cluster:
-						if not mem in clust:
-							notMem =  True
-							break
-					if not notMem:
-						numSubsetCs += 1
+        for threeDCSize, cList in threeDClusters.items():
+            if int(threeDCSize) >= currSize:
+                for clust in cList:
+                    for mem in cluster:
+                        if not mem in clust:
+                            notMem =  True
+                            break
+                    if not notMem:
+                        numSubsetCs += 1
 
-						avgKnowGain += float(threeDCSize) - float(currSize) 
-					else:
-						notMem = False
+                        avgKnowGain += float(threeDCSize) - float(currSize) 
+                    else:
+                        notMem = False
 
 avgKnowGain /= float(numSubsetCs)
 
