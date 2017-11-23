@@ -8,9 +8,9 @@ import re
 BIN_DIR = config['bin_dir']
 HIC_DATA_DIR = config['hic_data_dir']
 
-ORGANISMS = sorted(basename(x) for x in glob('%s/*' %HIC_DATA_DIR) if isdir(x))
+ORGANISMS = config.get('compare_only', sorted(basename(x) for x in glob(
+        '%s/*' %HIC_DATA_DIR) if isdir(x)))
 ORG_SHORT = '_'.join(map(lambda x: x[:3].lower(), ORGANISMS))
-
 HIC_MAPS_BASE = sorted(map(lambda y: join(*(y.split('/')[
         len(HIC_DATA_DIR.split('/')):])), chain(*(glob(
         '%s/%s/*%s' %(HIC_DATA_DIR, x, config['hic_file_ending'])) for x in
@@ -43,6 +43,12 @@ GO_OBO_FILE = next(iter(glob('%s/*.obo' %config['go_data_dir'])), [])
 GO_REF = config['go_reference_species']
 GO_SAMPLE_SIZE = config['go_sample_pool_size']
 
+LOG_DIR = config['log_dir']
+
+if not isdir(LOG_DIR):
+    from os import makedirs
+    makedirs(LOG_DIR)
+
 rule all: 
     input:
         expand('%s/%s_d{delta}.csv' %(TEAMS_DIR, ORG_SHORT), delta=DELTA)
@@ -51,6 +57,14 @@ rule all:
 rule all_sequential: 
     input:
         expand('%s/%s_d{delta}.csv' %(SEQ_TEAMS_DIR, ORG_SHORT), delta=DELTA)
+
+
+rule go_analysis:
+    input: 
+        expand('%s/{teams_dir}/%s_ref_%s_d{delta}.significant' %(
+                GO_ANALYSIS_DIR, ORG_SHORT, GO_REF), teams_dir=(TEAMS_DIR,
+                SEQ_TEAMS_DIR), delta=DELTA), 
+        '%s_ref_%s_go_score_stats.csv' %(ORG_SHORT, GO_REF)
 
 
 rule normalize:
@@ -63,7 +77,7 @@ rule normalize:
     output:
         expand('%s/{hic_map}.dmat' %HIC_DATA_DIR, hic_map=HIC_MAPS_BASE)
     log:
-        'normalizer.log'
+        '%s/normalizer.log' %LOG_DIR
     shell:
         '%s/normalizer.py -t {params.ntype} -x {params.col_offset} ' %BIN_DIR +
         '-y {params.row_offset} {input} 2> {log}'
@@ -108,7 +122,7 @@ rule buildGraphs:
     output:
         '%s/{organism}_d%s.ml' %(GRAPH_DATA_DIR, max(DELTA))
     log:
-        'build_graphs_{organism}_d%s.log' %(max(DELTA))
+        '%s/build_graphs_{organism}_d%s.log' %(LOG_DIR, max(DELTA))
     shell:
         'mkdir -p %s;' %GRAPH_DATA_DIR + 
         '%s/hic_to_graph.py -d {params.mx_delta} -f {params.hic_format}' %BIN_DIR +
@@ -144,7 +158,7 @@ rule buildSequentialGraphs:
     output:
         '%s/{organism}_d%s.ml' %(SEQ_GRAPH_DATA_DIR, max(DELTA))
     log:
-        'build_graphs_seq_{organism}_d%s.log' %(max(DELTA))
+        '%s/build_graphs_seq_{organism}_d%s.log' %(LOG_DIR, max(DELTA))
     shell:
         'mkdir -p %s;' %SEQ_GRAPH_DATA_DIR + 
         '%s/hic_to_graph.py -d {params.mx_delta} -f {params.hic_format}' %BIN_DIR +
@@ -228,7 +242,8 @@ rule go_neighbor_cluster_scores:
                 GO_SAMPLE_SIZE),
         teams = '{teams_dir}/%s_d{delta}.csv' %ORG_SHORT
     output:
-        '%s/{teams_dir}/%s_d{delta,[0-9.]+}.csv' %(GO_ANALYSIS_DIR, GO_REF)
+        '%s/{teams_dir}/%s_ref_%s_d{delta,[0-9.]+}.csv' %(GO_ANALYSIS_DIR,
+                ORG_SHORT, GO_REF)
     shell:
         'mkdir -p %s/{wildcards.teams_dir};' %GO_ANALYSIS_DIR +
         '%s/nearest_neighbor_go_scores.py -s {input.samples} ' %BIN_DIR +
@@ -237,33 +252,28 @@ rule go_neighbor_cluster_scores:
 
 rule go_scores_significant:
     input:
-        '%s/{teams_dir}/%s_d{delta}.csv' %(GO_ANALYSIS_DIR, GO_REF)
+        '%s/{teams_dir}/%s_ref_%s_d{delta}.csv' %(GO_ANALYSIS_DIR, ORG_SHORT,
+                GO_REF)
     output:
-        '%s/{teams_dir}/%s_d{delta}.significant' %(GO_ANALYSIS_DIR, GO_REF)
+        '%s/{teams_dir}/%s_ref_%s_d{delta,[0-9.]+}.significant' %(
+                GO_ANALYSIS_DIR, ORG_SHORT, GO_REF)
     shell:
-        'awk \'{{if ($4 >= 0 && $4 < 0.05) print $0}}\' {input} | sort -gk4 > {output}'
+        'awk -F "\\t" \'{{if ($4 >= 0 && $4 < 0.05) print $0}}\' {input} | sort -gk4 > {output}'
         
 
 rule go_score_stats:
     input:
-        expand('%s/{teams_dir}/%s_d{delta}.csv' %(GO_ANALYSIS_DIR, GO_REF),
-                teams_dir=(TEAMS_DIR, SEQ_TEAMS_DIR), delta=DELTA)
+        expand('%s/{teams_dir}/%s_ref_%s_d{delta}.csv' %(GO_ANALYSIS_DIR,
+                ORG_SHORT, GO_REF), teams_dir=(TEAMS_DIR, SEQ_TEAMS_DIR),
+                delta=DELTA)
     output:
-        '%s_go_score_stats.csv' %GO_REF
+        '%s_ref_%s_go_score_stats.csv' %(ORG_SHORT, GO_REF)
     shell:
         'for d in %s; do' %' '.join(map(str, DELTA)) + 
-        '   n=`wc -l %s/%s/%s_d$d.csv| cut -f1 -d\ `; '%(GO_ANALYSIS_DIR, TEAMS_DIR, GO_REF) +
-        '   m=`wc -l %s/%s/%s_d$d.csv| cut -f1 -d\ `; '%(GO_ANALYSIS_DIR, SEQ_TEAMS_DIR, GO_REF) +
-        '   i=`awk "{{if (\$2 > 0) sum += \$3/\$2}} END {{print sum/$n}}" %s/%s/%s_d$d.csv`;' %(GO_ANALYSIS_DIR, TEAMS_DIR, GO_REF) +
-        '   j=`awk "{{if (\$2 > 0) sum += \$3/\$2}} END {{print sum/$m}}" %s/%s/%s_d$d.csv`;' %(GO_ANALYSIS_DIR, SEQ_TEAMS_DIR, GO_REF) +
+        '   n=`wc -l %s/%s/%s_ref_%s_d$d.csv| cut -f1 -d\ `; '%(GO_ANALYSIS_DIR, TEAMS_DIR, ORG_SHORT, GO_REF) +
+        '   m=`wc -l %s/%s/%s_ref_%s_d$d.csv| cut -f1 -d\ `; '%(GO_ANALYSIS_DIR, SEQ_TEAMS_DIR, ORG_SHORT, GO_REF) +
+        '   i=`awk -F "\\t" "{{if (\\\$2 > 0) sum += \\\$3/\\\$2}} END {{print sum/$n}}" %s/%s/%s_ref_%s_d$d.csv`;' %(GO_ANALYSIS_DIR, TEAMS_DIR, ORG_SHORT, GO_REF) +
+        '   j=`awk -F "\\t" "{{if (\\\$2 > 0) sum += \\\$3/\\\$2}} END {{print sum/$m}}" %s/%s/%s_ref_%s_d$d.csv`;' %(GO_ANALYSIS_DIR, SEQ_TEAMS_DIR, ORG_SHORT, GO_REF) +
         '   echo -e "$d\t$i\t$j";'
         'done > {output}'
-
-rule go_analysis:
-    input: 
-        expand('%s/{teams_dir}/%s_d{delta}.significant' %(GO_ANALYSIS_DIR, GO_REF),
-                teams_dir=(TEAMS_DIR, SEQ_TEAMS_DIR), delta=DELTA),
-        '%s_go_score_stats.csv' %GO_REF
-
-
 
