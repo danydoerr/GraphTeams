@@ -9,3 +9,4 @@ teams_seq/*
 go_analysis/*
 benchmarks/*
 *.csv
+*.pdf
