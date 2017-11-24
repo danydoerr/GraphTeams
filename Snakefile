@@ -1,5 +1,6 @@
 configfile: 'config.yaml'
 
+from sys import stdout, stderr, exit
 from os.path import basename, join, isdir
 from itertools import chain
 from glob import glob
@@ -42,6 +43,11 @@ GO_ASSOC_DATA = next(iter(glob('%s/*.gaf' %config['go_data_dir'])), [])
 GO_OBO_FILE = next(iter(glob('%s/*.obo' %config['go_data_dir'])), [])
 GO_REF = config['go_reference_species']
 GO_SAMPLE_SIZE = config['go_sample_pool_size']
+
+if GO_REF and GO_REF not in ORGANISMS:
+    print(('\t!! ERROR: GO reference genome %s not found in set ' + \
+            'of organisms {%s}. Exiting') %(GO_REF, ', '.join(ORGANISMS)))
+    exit(1)
 
 LOG_DIR = config['log_dir']
 
