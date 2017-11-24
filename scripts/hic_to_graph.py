@@ -227,6 +227,10 @@ def parseHiCMapAndWriteGraph(hic_map_files, data_type, genes, homologies, delta,
                     'are different, thus skipping file %s') %f)
             continue
 
+        if LOG.level == logging.DEBUG:
+            inter_dist = list()
+            intra_dist = list()
+
         last_gene = -1
         # segment counter
         i = 0
@@ -262,19 +266,31 @@ def parseHiCMapAndWriteGraph(hic_map_files, data_type, genes, homologies, delta,
 
                     if jp != i + xoffset:
                         wp += float(line[jp])
-
-                    w = wp/(y_segments[i][2] - x_segments[last_gene][1] + 1) * \
+                    
+                    # XXX measure distance from start to start; this has been
+                    # empirically studied on an arabidopsis dataset normalized
+                    # with HOMER and produced a good match between intra and
+                    # inter-segmental distances, whereas start to end would
+                    # produce make intersegmental distances significantly
+                    # shorter than intrasegmental counterparts.
+                    w = wp/(y_segments[i][1] - x_segments[last_gene][1] + 1) * \
                             (abs(gi[2]-genes[xsegs2gene[last_gene][-1]][1])+1)
                     out.write(('\tedge [\n\tsource %s\n\ttarget ' + \
                             '%s\n\tweight %.4f\n\t]\n') %(xsegs2gene[
                                 last_gene][-1], ysegs2gene[i][0], w))
+                    if LOG.level == logging.DEBUG:
+                        inter_dist.append(w/(abs(genes[ysegs2gene[i][0]][2] -
+                            genes[xsegs2gene[last_gene][-1]][1])+1))
+
 
                 wp = std_w/(y_segments[i][2] - y_segments[i][1] + 1)
                 x = ysegs2gene[i][0]
                 for y in ysegs2gene[i][1:]:
+                    w = wp * (abs(genes[y][2] - genes[x][1])+1)
                     out.write(('\tedge [\n\tsource %s\n\ttarget ' + \
-                            '%s\n\tweight %.4f\n\t]\n') %(x, y, wp *
-                                (abs(genes[y][2] - genes[x][1])+1)))
+                            '%s\n\tweight %.4f\n\t]\n') %(x, y, w))
+                    if LOG.level == logging.DEBUG:
+                        intra_dist.append(wp)
                     x = y
                 last_gene = i
             else:
@@ -327,6 +343,10 @@ def parseHiCMapAndWriteGraph(hic_map_files, data_type, genes, homologies, delta,
                             out.write(('\tedge [\n\tsource %s\n\ttarget ' + \
                                     '%s\n\tweight %.4f\n\t]\n') %(x, y, w))
             i += 1 
+        if LOG.level == logging.DEBUG:
+            LOG.debug('INTER_DISTS\t%s' %','.join(map(str, inter_dist)))
+            LOG.debug('INTRA_DISTS\t%s' %','.join(map(str, intra_dist)))
+
                     
     # Finish the output file
     out.write(']')
