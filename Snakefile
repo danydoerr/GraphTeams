@@ -213,10 +213,13 @@ rule sample_go_neighbor_cluster_scores:
     output:
         temp('%s/%s_samples_s{cluster_size}_n%s.csv'%(GO_ANALYSIS_DIR, GO_REF,
                 GO_SAMPLE_SIZE))
+    log:
+        '%s/sample_nn_go_ref_%s_n%s.log' %(LOG_DIR, GO_REF, GO_SAMPLE_SIZE)
     shell:
         'mkdir -p %s;' %GO_ANALYSIS_DIR +
         '%s/sample_nn_go_scores.py {input.obo} {input.assoc} ' %BIN_DIR +
-        '{input.annot} {wildcards.cluster_size} {params.pool_size} > {output}'
+        '{input.annot} {wildcards.cluster_size} {params.pool_size} > {output} '
+        '2> {log}'
 
 rule all_sample_go_neighbor_cluster_scores:
     input:
@@ -244,10 +247,14 @@ rule go_neighbor_cluster_scores:
     output:
         '%s/{teams_dir}/%s_ref_%s_d{delta,[0-9.]+}.csv' %(GO_ANALYSIS_DIR,
                 ORG_SHORT, GO_REF)
+    log:
+        '%s/nearest_neighbor_go_scores_%s_d{delta}_n%s.log' %(LOG_DIR,
+                ORG_SHORT, GO_SAMPLE_SIZE)
     shell:
         'mkdir -p %s/{wildcards.teams_dir};' %GO_ANALYSIS_DIR +
         '%s/nearest_neighbor_go_scores.py -s {input.samples} ' %BIN_DIR +
-        '{input.obo} {input.assoc} {input.annot} {input.teams} > {output}'
+        '{input.obo} {input.assoc} {input.annot} {input.teams} > {output} '
+        '2> {log}'
 
 
 rule go_scores_significant:
@@ -258,7 +265,8 @@ rule go_scores_significant:
         '%s/{teams_dir}/%s_ref_%s_d{delta,[0-9.]+}.significant' %(
                 GO_ANALYSIS_DIR, ORG_SHORT, GO_REF)
     shell:
-        'awk -F "\\t" \'{{if ($4 >= 0 && $4 < 0.05) print $0}}\' {input} | sort -gk4 > {output}'
+        'awk -F "\\t" \'{{if ($4 >= 0 && $4 < 0.05) print $0}}\' {input} | '
+        'sort -gk4 > {output}'
         
 
 rule go_score_stats:
