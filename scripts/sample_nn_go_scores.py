@@ -46,13 +46,8 @@ if __name__ == '__main__':
 
     # setup logging
     ch = logging.StreamHandler(stderr)
-    ch.setLevel(logging.ERROR)
-    ch.setFormatter(logging.Formatter('!! %(message)s'))
-    cf = logging.FileHandler('sample_nn_go_s%s_n%s.log' %(args.cluster_size,
-        args.no_of_samples), mode='w')
-    cf.setLevel(logging.DEBUG)
-    cf.setFormatter(logging.Formatter('%(levelname)s\t%(asctime)s\t%(message)s'))
-    LOG.addHandler(cf)
+    ch.setLevel(logging.INFO)
+    ch.setFormatter(logging.Formatter('%(levelname)s\t%(asctime)s\t%(message)s'))
     LOG.addHandler(ch)
 
 
