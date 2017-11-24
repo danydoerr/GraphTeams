@@ -310,11 +310,11 @@ def parseHiCMapAndWriteGraph(hic_map_files, data_type, genes, homologies, delta,
                             if x_segments[j][1] > y_segments[i][1]:
                                 d = abs(genes[xsegs2gene[j][-1]][2] -
                                         genes[ysegs2gene[i][0]][1])+1
-                                w = w/(x_segments[j][2]-y_segments[i][1]+1) * d
+                                w = w/(x_segments[j][1]-y_segments[i][1]+1) * d
                             else:
                                 d = abs(genes[ysegs2gene[i][-1]][2] -
                                         genes[xsegs2gene[j][0]][1])+1
-                                w = w/(y_segments[i][2]-x_segments[j][1]+1) * d
+                                w = w/(y_segments[i][1]-x_segments[j][1]+1) * d
                         if w  > delta:
                             continue
 
@@ -329,11 +329,11 @@ def parseHiCMapAndWriteGraph(hic_map_files, data_type, genes, homologies, delta,
                             w = wp
                             if gj[0] == gi[0]:
                                 if gj[1] > gi[1]:
-                                    w = w/(x_segments[j][2]  - \
+                                    w = w/(x_segments[j][1]  - \
                                             y_segments[i][1]) * \
                                             abs(gj[2]-gi[1])
                                 else:
-                                    w = w/(y_segments[i][2] - \
+                                    w = w/(y_segments[i][1] - \
                                             x_segments[j][1]) * \
                                             abs(gi[2]-gj[1])
 
