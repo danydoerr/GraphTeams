@@ -2,6 +2,9 @@
 
 from sys import stdout, stderr, exit
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter as ADHF
+import os
+if not os.environ.get('DISPLAY', None):
+    import matplotlib; matplotlib.use('Agg')
 from matplotlib import pylab as plt
 
 DEFAULT_DELTA = 1
