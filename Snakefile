@@ -211,7 +211,7 @@ rule sample_go_neighbor_cluster_scores:
     params:
         pool_size = GO_SAMPLE_SIZE
     output:
-        temp('%s/%s_samples_s{cluster_size}_n%s.csv'%(GO_ANALYSIS_DIR, GO_REF,
+        temp('%s/%s_samples_s{cluster_size}_n%s.csv.gz'%(GO_ANALYSIS_DIR, GO_REF,
                 GO_SAMPLE_SIZE))
     log:
         '%s/sample_nn_go_ref_%s_n%s.log' %(LOG_DIR, GO_REF, GO_SAMPLE_SIZE)
@@ -241,11 +241,11 @@ rule go_neighbor_cluster_scores:
         assoc = GO_ASSOC_DATA,
         annot = ['%s.annotation' %x.rsplit('.', 1)[0] for x in HOMOLOGY_MAPS if
                 x.startswith('%s/%s' %(GENE_DATA_DIR, GO_REF))],
-        samples = '%s/%s_samples_n%s.csv' %(GO_ANALYSIS_DIR, GO_REF,
+        samples = '%s/%s_samples_n%s.csv.gz' %(GO_ANALYSIS_DIR, GO_REF,
                 GO_SAMPLE_SIZE),
         teams = '{teams_dir}/%s_d{delta}.csv' %ORG_SHORT
     output:
-        '%s/{teams_dir}/%s_ref_%s_d{delta,[0-9.]+}.csv.gz' %(GO_ANALYSIS_DIR,
+        '%s/{teams_dir}/%s_ref_%s_d{delta,[0-9.]+}.csv' %(GO_ANALYSIS_DIR,
                 ORG_SHORT, GO_REF)
     log:
         '%s/nearest_neighbor_go_scores_%s_d{delta}_n%s.log' %(LOG_DIR,
