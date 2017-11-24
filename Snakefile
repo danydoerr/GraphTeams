@@ -217,22 +217,22 @@ rule sample_go_neighbor_cluster_scores:
         '%s/sample_nn_go_ref_%s_n%s.log' %(LOG_DIR, GO_REF, GO_SAMPLE_SIZE)
     shell:
         'mkdir -p %s;' %GO_ANALYSIS_DIR +
-        '%s/sample_nn_go_scores.py {input.obo} {input.assoc} ' %BIN_DIR +
+        '%s/sample_nn_go_scores.py -c {input.obo} {input.assoc} ' %BIN_DIR +
         '{input.annot} {wildcards.cluster_size} {params.pool_size} > {output} '
         '2> {log}'
 
 rule all_sample_go_neighbor_cluster_scores:
     input:
-        expand('%s/%s_samples_s{cluster_size}_n%s.csv' %(GO_ANALYSIS_DIR,
+        expand('%s/%s_samples_s{cluster_size}_n%s.csv.gz' %(GO_ANALYSIS_DIR,
                 GO_REF, GO_SAMPLE_SIZE), cluster_size=range(2,
                 config['go_sample_max_cluster_size']+1))
     output:
-        '%s/%s_samples_n%s.csv' %(GO_ANALYSIS_DIR, GO_REF, GO_SAMPLE_SIZE)
+        '%s/%s_samples_n%s.csv.gz' %(GO_ANALYSIS_DIR, GO_REF, GO_SAMPLE_SIZE)
     shell:
         'for i in `seq 2 %s`; do' %config['go_sample_max_cluster_size'] +
         '   echo -en "$i\\t" >> {output};' 
         '   cat %s/%s_samples_s${{i}}_n%s.csv >> {output};' %(GO_ANALYSIS_DIR, GO_REF, GO_SAMPLE_SIZE) +
-        'done'
+        'done;'
 
 
 rule go_neighbor_cluster_scores:
@@ -245,14 +245,14 @@ rule go_neighbor_cluster_scores:
                 GO_SAMPLE_SIZE),
         teams = '{teams_dir}/%s_d{delta}.csv' %ORG_SHORT
     output:
-        '%s/{teams_dir}/%s_ref_%s_d{delta,[0-9.]+}.csv' %(GO_ANALYSIS_DIR,
+        '%s/{teams_dir}/%s_ref_%s_d{delta,[0-9.]+}.csv.gz' %(GO_ANALYSIS_DIR,
                 ORG_SHORT, GO_REF)
     log:
         '%s/nearest_neighbor_go_scores_%s_d{delta}_n%s.log' %(LOG_DIR,
                 ORG_SHORT, GO_SAMPLE_SIZE)
     shell:
         'mkdir -p %s/{wildcards.teams_dir};' %GO_ANALYSIS_DIR +
-        '%s/nearest_neighbor_go_scores.py -s {input.samples} ' %BIN_DIR +
+        '%s/nearest_neighbor_go_scores.py -c -s {input.samples} ' %BIN_DIR +
         '{input.obo} {input.assoc} {input.annot} {input.teams} > {output} '
         '2> {log}'
 

@@ -266,6 +266,9 @@ if __name__ == '__main__':
     parser = ArgumentParser(formatter_class=ADHF)
     parser.add_argument('-s', '--samples', type=str, 
             help='file containing empirically sampled nearest neighbor scores')
+    parser.add_argument('-c', '--is_compressed', type=str, 
+            help='flag to indicate that file containing empirically ' + \
+                    'sampled nn scores is compressed (GZIP)')
     parser.add_argument('go_obo_file', type=str, 
             help='gene Ontology hierarchy in OBO format')
     parser.add_argument('go_associations', type=str,
@@ -309,7 +312,15 @@ if __name__ == '__main__':
     if args.samples:
         LOG.info('reading samples from file %s' %args.samples)
         samples = dict()
-        for line in csv.reader(open(args.samples), delimiter='\t'):
+
+        data = None
+        if args.is_compressed:
+            from gzip import open as gopen
+            data = gopen(args.samples)
+        else:
+            data = open(args.samples)
+        
+        for line in csv.reader(data, delimiter='\t'):
             samples[int(line[0])] = map(float, line[1:])
             
     LOG.info('nearest neighbor analysis over all annotated genes')

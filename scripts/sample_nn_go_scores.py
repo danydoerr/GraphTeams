@@ -30,6 +30,8 @@ def sample_nn(t, links, levels, nn_genome, genesChr, cluster_size, no_of_samples
 
 if __name__ == '__main__':
     parser = ArgumentParser(formatter_class=ADHF)
+    parser.add_argument('-c', '--compress', action='store_true', 
+            help='compress output')
     parser.add_argument('go_obo_file', type=str, 
             help='Gene Ontology hierarchy in OBO format')
     parser.add_argument('go_associations', type=str,
@@ -75,5 +77,12 @@ if __name__ == '__main__':
     nearest_gene_dists = nearestNeighborDist(t, links, levels, genes)
     samples = sample_nn(t, links, levels, nearest_gene_dists, genesChr,
         args.cluster_size, args.no_of_samples)
-    print '\t'.join(map(str, samples))
+   
+    out = stdout
+    if args.compress:
+        from gzip import GzipFile
+        out = GzipFile(fileobj=stdout, mode='w')
+    print >> out, '\t'.join(map(str, samples))
+    out.close()
+
     LOG.info('done')
