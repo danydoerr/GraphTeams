@@ -183,7 +183,7 @@ rule buildDiffGraphs:
         '%s/build_diff_graphs_{o1}-{o2}_d%s.log' %(LOG_DIR, max(DELTA))
     shell:
         'mkdir -p %s;' %DIFF_GRAPH_DATA_DIR + 
-        '%s/construct_diff_graph.py -d {params.mx_delta} {input.o1} ' + 
+        '%s/construct_diff_graph.py -d {params.mx_delta} {input.o1} ' %BIN_DIR + 
         '{input.o2} > {output} 2> {log}'
        
 

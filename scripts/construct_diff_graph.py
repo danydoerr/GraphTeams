@@ -41,8 +41,6 @@ if __name__ == '__main__':
     if G2.is_directed():
         G2 = G2.to_undirected()
 
-    import pdb; pdb.set_trace() 
-
     LOG.info('producing union set of edges')
     
     edges = set(G1.edges())
@@ -64,10 +62,12 @@ if __name__ == '__main__':
             w2 = G2[u][v]['weight']
         except:
             pass
-        G.add_edge(u, v, weight=w2-w1)
+
+        if w2-w1 <= args.delta:
+            G.add_edge(u, v, weight=w2-w1)
 
     LOG.info('output graph')
-    G.write_gml(G, stdout) 
+    nx.write_gml(G, stdout) 
     LOG.info('DONE')
 
 
