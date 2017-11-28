@@ -266,7 +266,7 @@ if __name__ == '__main__':
     parser = ArgumentParser(formatter_class=ADHF)
     parser.add_argument('-s', '--samples', type=str, 
             help='file containing empirically sampled nearest neighbor scores')
-    parser.add_argument('-c', '--is_compressed', type=str, 
+    parser.add_argument('-c', '--is_compressed', action='store_true', 
             help='flag to indicate that file containing empirically ' + \
                     'sampled nn scores is compressed (GZIP)')
     parser.add_argument('go_obo_file', type=str, 
