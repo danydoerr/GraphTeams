@@ -273,24 +273,24 @@ def parseHiCMapAndWriteGraph(hic_map_files, data_type, genes, homologies, delta,
                     # inter-segmental distances, whereas start to end would
                     # produce make intersegmental distances significantly
                     # shorter than intrasegmental counterparts.
-                    w = wp/(y_segments[i][1] - x_segments[last_gene][1] + 1) * \
-                            (abs(gi[2]-genes[xsegs2gene[last_gene][-1]][1])+1)
+                    d = abs(gi[1]-genes[xsegs2gene[last_gene][-1]][1])
+                    w = wp/(y_segments[i][1] - x_segments[last_gene][1]) * d
+
                     out.write(('\tedge [\n\tsource %s\n\ttarget ' + \
                             '%s\n\tweight %.4f\n\t]\n') %(xsegs2gene[
                                 last_gene][-1], ysegs2gene[i][0], w))
                     if LOG.level == logging.DEBUG:
-                        inter_dist.append(w/(abs(genes[ysegs2gene[i][0]][2] -
-                            genes[xsegs2gene[last_gene][-1]][1])+1))
+                        inter_dist.append(w/d)
 
 
                 wp = std_w/(y_segments[i][2] - y_segments[i][1] + 1)
+                if LOG.level == logging.DEBUG:
+                    intra_dist.append(wp)
                 x = ysegs2gene[i][0]
                 for y in ysegs2gene[i][1:]:
-                    w = wp * (abs(genes[y][2] - genes[x][1])+1)
+                    w = wp * abs(genes[y][1] - genes[x][1])
                     out.write(('\tedge [\n\tsource %s\n\ttarget ' + \
                             '%s\n\tweight %.4f\n\t]\n') %(x, y, w))
-                    if LOG.level == logging.DEBUG:
-                        intra_dist.append(wp)
                     x = y
                 last_gene = i
             else:
@@ -299,7 +299,6 @@ def parseHiCMapAndWriteGraph(hic_map_files, data_type, genes, homologies, delta,
                     # if symmetric, then only uses upper triangle of the
                     # distance matrix
                     jps = xrange(i+xoffset, len(line))
-
                 for jp in jps:
                     j = jp-xoffset
 
@@ -307,41 +306,54 @@ def parseHiCMapAndWriteGraph(hic_map_files, data_type, genes, homologies, delta,
                         wp = float(line[jp])
                         w = wp
                         if x_segments[j][0] == y_segments[i][0]:
-                            if x_segments[j][1] > y_segments[i][1]:
-                                d = abs(genes[xsegs2gene[j][-1]][2] -
-                                        genes[ysegs2gene[i][0]][1])+1
-                                w = w/(x_segments[j][1]-y_segments[i][1]+1) * d
+                            # generally do comparison within the same segment
+                            if i + 1 == j and LOG.level == logging.DEBUG:
+                                inter_dist.append(wp/(x_segments[j][1] - \
+                                        y_segments[i][1]))
+                            if x_segments[i] == y_segments[j]:
+                                w = delta
+                            elif x_segments[j][1] > y_segments[i][1]:
+                                d = abs(genes[xsegs2gene[j][-1]][1] -
+                                        genes[ysegs2gene[i][0]][1])
+                                # if segment distance is measured extremity to
+                                # extremity we need to add +1 (same holds for
+                                # gene distance in the line above)
+                                #w = w/(x_segments[j][2]-y_segments[i][1]+1) * d
+                                w = w/(x_segments[j][1]-y_segments[i][1]) * d
                             else:
-                                d = abs(genes[ysegs2gene[i][-1]][2] -
-                                        genes[xsegs2gene[j][0]][1])+1
-                                w = w/(y_segments[i][1]-x_segments[j][1]+1) * d
+                                d = abs(genes[ysegs2gene[i][-1]][1] -
+                                        genes[xsegs2gene[j][0]][1])
+                                # if segment distance is measured extremity to
+                                # extremity we need to add +1 (same holds for
+                                # gene distance in the line above)
+                                #w = w/(x_segments[i][2]-y_segments[j][1]+1) * d
+                                w = w/(y_segments[i][1]-x_segments[j][1]) * d
                         if w  > delta:
                             continue
 
-                        
                         p = product(xsegs2gene[j], ysegs2gene[i])
-                        if isSymmetric and i == j:
-                            p = combinations(xsegs2gene[j], 2)
-                        for x, y in p:
-                            gj = genes[x]
-                            gi = genes[y]
+                        if x_segments[j][0] != y_segments[i][0]:
+                            for x, y in p:
+                                out.write(('\tedge [\n\tsource %s\n\ttarget '+\
+                                        '%s\n\tweight %.4f\n\t]\n') %(x, y,
+                                            wp))
+                        else:
+                            scale_f = x_segments[j][1] - y_segments[i][1]
+                            if isSymmetric and i == j:
+                                p = combinations(xsegs2gene[j], 2)
+                                scale_f = x_segments[j][2] - y_segments[i][1]+1
+                                if LOG.level == logging.DEBUG:
+                                    intra_dist.append(wp/scale_f)
 
-                            w = wp
-                            if gj[0] == gi[0]:
-                                if gj[1] > gi[1]:
-                                    w = w/(x_segments[j][1]  - \
-                                            y_segments[i][1]) * \
-                                            abs(gj[2]-gi[1])
-                                else:
-                                    w = w/(y_segments[i][1] - \
-                                            x_segments[j][1]) * \
-                                            abs(gi[2]-gj[1])
+                            w = wp/scale_f
 
-                            if gi == gj or w > delta:
-                                continue
-
-                            out.write(('\tedge [\n\tsource %s\n\ttarget ' + \
-                                    '%s\n\tweight %.4f\n\t]\n') %(x, y, w))
+                            for x, y in p:
+                                d = genes[x]!=genes[y] and \
+                                        abs(genes[x][1]-genes[y][1]) or 0
+                                if w*d < delta:
+                                    out.write(('\tedge [\n\tsource %s\n\ttarget '+\
+                                            '%s\n\tweight %.4f\n\t]\n') %(x, y,
+                                                w*d))
             i += 1 
         if LOG.level == logging.DEBUG:
             LOG.debug('INTER_DISTS\t%s' %','.join(map(str, inter_dist)))
@@ -382,7 +394,7 @@ if __name__ == '__main__':
 
     # setup logging
     ch = logging.StreamHandler(stderr)
-    ch.setLevel(logging.INFO)
+    ch.setLevel(logging.DEBUG)
     ch.setFormatter(logging.Formatter('%(levelname)s: %(message)s'))
     LOG.addHandler(ch)
 
