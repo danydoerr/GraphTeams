@@ -217,28 +217,29 @@ rule sample_go_neighbor_cluster_scores:
     params:
         pool_size = GO_SAMPLE_SIZE
     output:
-        temp('%s/%s_samples_s{cluster_size}_n%s.csv.gz'%(GO_ANALYSIS_DIR, GO_REF,
+        temp('%s/%s_samples_s{cluster_size}_n%s.csv'%(GO_ANALYSIS_DIR, GO_REF,
                 GO_SAMPLE_SIZE))
     log:
         '%s/sample_nn_go_ref_%s_n%s.log' %(LOG_DIR, GO_REF, GO_SAMPLE_SIZE)
     shell:
         'mkdir -p %s;' %GO_ANALYSIS_DIR +
-        '%s/sample_nn_go_scores.py -c {input.obo} {input.assoc} ' %BIN_DIR +
+        '%s/sample_nn_go_scores.py {input.obo} {input.assoc} ' %BIN_DIR +
         '{input.annot} {wildcards.cluster_size} {params.pool_size} > {output} '
         '2> {log}'
 
 rule all_sample_go_neighbor_cluster_scores:
     input:
-        expand('%s/%s_samples_s{cluster_size}_n%s.csv.gz' %(GO_ANALYSIS_DIR,
+        expand('%s/%s_samples_s{cluster_size}_n%s.csv' %(GO_ANALYSIS_DIR,
                 GO_REF, GO_SAMPLE_SIZE), cluster_size=range(2,
                 config['go_sample_max_cluster_size']+1))
     output:
         '%s/%s_samples_n%s.csv.gz' %(GO_ANALYSIS_DIR, GO_REF, GO_SAMPLE_SIZE)
     shell:
+        'OUT="{output}";'
         'for i in `seq 2 %s`; do' %config['go_sample_max_cluster_size'] +
-        '   echo -en "$i\\t" >> {output};' 
-        '   cat %s/%s_samples_s${{i}}_n%s.csv >> {output};' %(GO_ANALYSIS_DIR, GO_REF, GO_SAMPLE_SIZE) +
-        'done;'
+        '   echo -en "$i\\t" >> ${{OUT%%.gz}};' 
+        '   cat %s/%s_samples_s${{i}}_n%s.csv >> ${{OUT%%.gz}};' %(GO_ANALYSIS_DIR, GO_REF, GO_SAMPLE_SIZE) + 
+        'done; gzip ${{OUT%.gz}};'
 
 
 rule go_neighbor_cluster_scores:
