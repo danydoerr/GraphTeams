@@ -46,7 +46,6 @@ if __name__ == '__main__':
     edges = set(G1.edges())
     edges.update(G2.edges())
 
-    
     LOG.info('constructing difference graph')
 
     G = nx.Graph()
