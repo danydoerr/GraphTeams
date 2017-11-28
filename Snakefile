@@ -12,6 +12,10 @@ HIC_DATA_DIR = config['hic_data_dir']
 ORGANISMS = config.get('compare_only', sorted(basename(x) for x in glob(
         '%s/*' %HIC_DATA_DIR) if isdir(x)))
 ORG_SHORT = '_'.join(map(lambda x: x[:3].lower(), ORGANISMS))
+
+ORG_DIFF = [x for x in config.get('diff_pairs', ()) if x[0] in ORGANISMS and
+        x[1] in ORGANISMS]
+
 HIC_MAPS_BASE = sorted(map(lambda y: join(*(y.split('/')[
         len(HIC_DATA_DIR.split('/')):])), chain(*(glob(
         '%s/%s/*%s' %(HIC_DATA_DIR, x, config['hic_file_ending'])) for x in
@@ -29,6 +33,7 @@ elif HIC_FORMAT == 'HOMER':
 
 GRAPH_DATA_DIR = config['graph_data_dir']
 SEQ_GRAPH_DATA_DIR = config['graph_data_dir'] + '_seq'
+DIFF_GRAPH_DATA_DIR = config['graph_data_dir'] + '_diff'
 
 GENE_DATA_DIR = config['gene_data_dir']
 HOMOLOGY_MAPS = sorted(glob('%s/%s/*%s' %(GENE_DATA_DIR, x,
@@ -36,6 +41,7 @@ HOMOLOGY_MAPS = sorted(glob('%s/%s/*%s' %(GENE_DATA_DIR, x,
 
 TEAMS_DIR = config['graph_teams_dir']
 SEQ_TEAMS_DIR = config['graph_teams_dir'] + '_seq'
+DIFF_TEAMS_DIR = config['graph_teams_dir'] + '_diff'
 DELTA = config['delta']
 
 GO_ANALYSIS_DIR = config['go_analysis_dir']
@@ -43,6 +49,7 @@ GO_ASSOC_DATA = next(iter(glob('%s/*.gaf' %config['go_data_dir'])), [])
 GO_OBO_FILE = next(iter(glob('%s/*.obo' %config['go_data_dir'])), [])
 GO_REF = config['go_reference_species']
 GO_SAMPLE_SIZE = config['go_sample_pool_size']
+
 
 if GO_REF and GO_REF not in ORGANISMS:
     print(('\t!! ERROR: GO reference genome %s not found in set ' + \
@@ -72,6 +79,11 @@ rule go_analysis:
                 SEQ_TEAMS_DIR), delta=DELTA), 
         '%s_ref_%s_go_score_stats.csv' %(ORG_SHORT, GO_REF)
 
+
+rule all_diff: 
+    input:
+        expand('%s/%s_d{delta}.csv' %(DIFF_TEAMS_DIR, '_'.join(map(lambda x:
+                '-'.join(x), ORG_DIFF))), delta=0)
 
 rule normalize:
     input:
@@ -136,19 +148,6 @@ rule buildGraphs:
         '{output} 2> {log}'
 
 
-rule findTeams:
-    input:
-        graph=expand('%s/{organism}_d%s.ml' %(GRAPH_DATA_DIR, max(DELTA)),
-                organism=ORGANISMS)
-    output:
-        '%s/%s_d{delta,[0-9.]+}.csv' %(TEAMS_DIR, ORG_SHORT)
-    benchmark:
-        'benchmarks/teams_spatial_d{delta}.txt'
-    shell:
-        'mkdir -p %s;' %TEAMS_DIR + 
-        '%s/graph_teams.py -d {wildcards.delta} {input} > {output}' %BIN_DIR
-
-
 rule buildSequentialGraphs:
     input:
         hic_dmat = lambda wildcards: expand('%s/{hic_map}.dmat' %HIC_DATA_DIR,
@@ -172,6 +171,35 @@ rule buildSequentialGraphs:
         '{input.hic_dmat} > {output} 2> {log}'
 
 
+rule buildDiffGraphs:
+    input:
+        o1 = '%s/{o1}_d%s.ml' %(GRAPH_DATA_DIR, max(DELTA)),
+        o2 = '%s/{o2}_d%s.ml' %(GRAPH_DATA_DIR, max(DELTA))
+    params:
+        mx_delta = max(DELTA)
+    output:
+        '%s/{o1}-{o2}_d%s.ml' %(DIFF_GRAPH_DATA_DIR, max(DELTA))
+    log:
+        '%s/build_diff_graphs_{o1}-{o2}_d%s.log' %(LOG_DIR, max(DELTA))
+    shell:
+        'mkdir -p %s;' %DIFF_GRAPH_DATA_DIR + 
+        '%s/construct_diff_graph.py -d {params.mx_delta} {input.o1} ' + 
+        '{input.o2} > {output} 2> {log}'
+       
+
+rule findTeams:
+    input:
+        graph=expand('%s/{organism}_d%s.ml' %(GRAPH_DATA_DIR, max(DELTA)),
+                organism=ORGANISMS)
+    output:
+        '%s/%s_d{delta,[0-9.]+}.csv' %(TEAMS_DIR, ORG_SHORT)
+    benchmark:
+        'benchmarks/teams_spatial_d{delta}.txt'
+    shell:
+        'mkdir -p %s;' %TEAMS_DIR + 
+        '%s/graph_teams.py -d {wildcards.delta} {input} > {output}' %BIN_DIR
+
+
 rule findStringTeams:
     input:
         graph=expand('%s/{organism}_d%s.ml' %(SEQ_GRAPH_DATA_DIR, max(DELTA)),
@@ -182,6 +210,21 @@ rule findStringTeams:
         'benchmarks/teams_seq_d{delta}.txt'
     shell:
         'mkdir -p %s;' %SEQ_TEAMS_DIR + 
+        '%s/graph_teams.py -d {wildcards.delta} {input} > {output}' %BIN_DIR
+
+
+rule findDiffTeams:
+    input:
+        graphs=expand('%s/{odiff}_d%s.ml' %(DIFF_GRAPH_DATA_DIR, max(DELTA)),
+                odiff = map(lambda x: '-'.join(x), ORG_DIFF))
+    output:
+        '%s/%s_d{delta,[0-9.]+}.csv' %(DIFF_TEAMS_DIR, '_'.join(map(lambda x:
+                '-'.join(x), ORG_DIFF)))
+    benchmark:
+        'benchmarks/teams_diff_%s_d{delta}.txt' %'_'.join(map(lambda x:
+                '-'.join(x), ORG_DIFF))
+    shell:
+        'mkdir -p %s;' %DIFF_TEAMS_DIR + 
         '%s/graph_teams.py -d {wildcards.delta} {input} > {output}' %BIN_DIR
 
 
