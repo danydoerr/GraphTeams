@@ -65,6 +65,12 @@ if __name__ == '__main__':
         if w2-w1 <= args.delta:
             G.add_edge(u, v, weight=w2-w1)
 
+    for v, data in G.nodes(data=True):
+        if G1.has_node(v):
+            data['class'] = G1[v]['class']
+        else:
+            data['class'] = G2[v]['class']
+
     LOG.info('output graph')
     nx.write_gml(G, stdout) 
     LOG.info('DONE')
