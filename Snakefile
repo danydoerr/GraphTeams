@@ -194,7 +194,7 @@ rule findTeams:
     output:
         '%s/%s_d{delta,[0-9.]+}.csv' %(TEAMS_DIR, ORG_SHORT)
     benchmark:
-        'benchmarks/teams_spatial_d{delta}.txt'
+        'benchmarks/teams_spatial_%s_d{delta}.txt' %ORG_SHORT
     shell:
         'mkdir -p %s;' %TEAMS_DIR + 
         '%s/graph_teams.py -d {wildcards.delta} {input} > {output}' %BIN_DIR
@@ -207,7 +207,7 @@ rule findStringTeams:
     output:
         '%s/%s_d{delta,[0-9.]+}.csv' %(SEQ_TEAMS_DIR, ORG_SHORT)
     benchmark:
-        'benchmarks/teams_seq_d{delta}.txt'
+        'benchmarks/teams_seq_%s_d{delta}.txt' %ORG_SHORT
     shell:
         'mkdir -p %s;' %SEQ_TEAMS_DIR + 
         '%s/graph_teams.py -d {wildcards.delta} {input} > {output}' %BIN_DIR
@@ -239,7 +239,7 @@ rule make_stats_file:
         '%s_stats.csv' %ORG_SHORT
     shell:
         'for i in %s; do ' %(' '.join(map(str, DELTA))) + 
-        '   %s/ClusterEvaluator.py -d$i %s/%s_d$i.csv %s/%s_d$i.csv benchmarks/teams_spatial_d$i.txt;' %(BIN_DIR, TEAMS_DIR, ORG_SHORT, SEQ_TEAMS_DIR, ORG_SHORT) + 
+        '   %s/ClusterEvaluator.py -d$i %s/%s_d$i.csv %s/%s_d$i.csv benchmarks/teams_spatial_%s_d$i.txt;' %(BIN_DIR, TEAMS_DIR, ORG_SHORT, SEQ_TEAMS_DIR, ORG_SHORT, ORG_SHORT) + 
         'done > {output}'
 
 
