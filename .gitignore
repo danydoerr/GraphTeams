@@ -4,8 +4,10 @@
 data/*
 graphs/*
 graphs_seq/*
+graphs_diff/*
 teams/*
 teams_seq/*
+teams_diff/*
 go_analysis/*
 benchmarks/*
 *.csv
