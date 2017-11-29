@@ -274,13 +274,13 @@ def parseHiCMapAndWriteGraph(hic_map_files, data_type, genes, homologies, delta,
                     # produce make intersegmental distances significantly
                     # shorter than intrasegmental counterparts.
                     d = abs(gi[1]-genes[xsegs2gene[last_gene][-1]][1])
-                    w = wp/(y_segments[i][1] - x_segments[last_gene][1]) * d
+                    w = wp/(y_segments[i][1] - x_segments[last_gene][1])
 
                     out.write(('\tedge [\n\tsource %s\n\ttarget ' + \
                             '%s\n\tweight %.4f\n\t]\n') %(xsegs2gene[
-                                last_gene][-1], ysegs2gene[i][0], w))
+                                last_gene][-1], ysegs2gene[i][0], w*d))
                     if LOG.level == logging.DEBUG:
-                        inter_dist.append(w/d)
+                        inter_dist.append(w)
 
 
                 wp = std_w/(y_segments[i][2] - y_segments[i][1] + 1)
