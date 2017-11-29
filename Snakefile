@@ -103,6 +103,10 @@ rule check_occurrence_seq:
     input:
         'occurrences_seq_%s_m%s.csv' %(ORG_SHORT, OCCURRENCE_MIN)
         
+rule check_occurrence_diff:
+    input:
+        'occurrences_diff_%s_m%s.csv' %('_'.join(map(lambda x: '-'.join(x),
+                ORG_DIFF)), OCCURRENCE_MIN)
 
 rule normalize:
     input:
@@ -369,11 +373,26 @@ rule check_occurrence_rule:
 rule check_occurrence_seq_rule:
     input:
         realgc = REAL_GCS,
-        teams = expand('%s/%s_d{delta}.csv' %(SEQ_TEAMS_DIR, ORG_SHORT), delta=DELTA)
+        teams = expand('%s/%s_d{delta}.csv' %(SEQ_TEAMS_DIR, ORG_SHORT),
+                delta=DELTA)
     params:
         min_occ = OCCURRENCE_MIN
     output:
         'occurrences_seq_%s_m%s.csv' %(ORG_SHORT, OCCURRENCE_MIN)
+    shell:
+        '%s/check_occurrence.py -m {params.min_occ} {input.realgc} ' %BIN_DIR +
+        '{input.teams} > {output}'
+
+rule check_occurrence_diff_rule:
+    input:
+        realgc = REAL_GCS,
+        teams = expand('%s/%s_d{delta}.csv' %(DIFF_TEAMS_DIR,
+                '_'.join(map(lambda x: '-'.join(x), ORG_DIFF))), delta=DELTA)
+    params:
+        min_occ = OCCURRENCE_MIN
+    output:
+        'occurrences_diff_%s_m%s.csv' %('_'.join(map(lambda x: '-'.join(x),
+                ORG_DIFF)), OCCURRENCE_MIN)
     shell:
         '%s/check_occurrence.py -m {params.min_occ} {input.realgc} ' %BIN_DIR +
         '{input.teams} > {output}'
