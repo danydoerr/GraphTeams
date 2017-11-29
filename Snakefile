@@ -363,7 +363,7 @@ rule check_occurrence_rule:
     output:
         'occurrences_%s_m%s.csv' %(ORG_SHORT, OCCURRENCE_MIN)
     shell:
-        '%s/check_occurrence.py -m {params.min_occ} {input.realgc} '
+        '%s/check_occurrence.py -m {params.min_occ} {input.realgc} ' %BIN_DIR +
         '{input.teams} > {output}'
 
 rule check_occurrence_seq_rule:
@@ -375,6 +375,6 @@ rule check_occurrence_seq_rule:
     output:
         'occurrences_seq_%s_m%s.csv' %(ORG_SHORT, OCCURRENCE_MIN)
     shell:
-        '%s/check_occurrence.py -m {params.min_occ} {input.realgc} '
+        '%s/check_occurrence.py -m {params.min_occ} {input.realgc} ' %BIN_DIR +
         '{input.teams} > {output}'
 
