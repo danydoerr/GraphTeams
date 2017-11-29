@@ -43,6 +43,7 @@ TEAMS_DIR = config['graph_teams_dir']
 SEQ_TEAMS_DIR = config['graph_teams_dir'] + '_seq'
 DIFF_TEAMS_DIR = config['graph_teams_dir'] + '_diff'
 DELTA = config['delta']
+MX_DELTA = config.get('max_delta', max(DELTA))
 
 GO_ANALYSIS_DIR = config['go_analysis_dir']
 GO_ASSOC_DATA = next(iter(glob('%s/*.gaf' %config['go_data_dir'])), [])
@@ -50,6 +51,10 @@ GO_OBO_FILE = next(iter(glob('%s/*.obo' %config['go_data_dir'])), [])
 GO_REF = config['go_reference_species']
 GO_SAMPLE_SIZE = config['go_sample_pool_size']
 
+if MX_DELTA < max(DELTA):
+    print(('\t!! ERROR: value for \'max_delta\' cannot be set lower than ' + \
+            'maximum delta in list \'delta\''))
+    exit(1)
 
 if GO_REF and GO_REF not in ORGANISMS:
     print(('\t!! ERROR: GO reference genome %s not found in set ' + \
@@ -83,7 +88,7 @@ rule go_analysis:
 rule all_diff: 
     input:
         expand('%s/%s_d{delta}.csv' %(DIFF_TEAMS_DIR, '_'.join(map(lambda x:
-                '-'.join(x), ORG_DIFF))), delta=0)
+                '-'.join(x), ORG_DIFF))), delta=DELTA)
 
 rule normalize:
     input:
@@ -135,12 +140,12 @@ rule buildGraphs:
                 wildcards.organism))],
         homology_table = '%s/homology_%s.csv' %(GENE_DATA_DIR, ORG_SHORT)
     params:
-        mx_delta = max(DELTA),
+        mx_delta = MX_DELTA,
         hic_format = HIC_FORMAT,
     output:
-        '%s/{organism}_d%s.ml' %(GRAPH_DATA_DIR, max(DELTA))
+        '%s/{organism}_d%s.ml' %(GRAPH_DATA_DIR, MX_DELTA)
     log:
-        '%s/build_graphs_{organism}_d%s.log' %(LOG_DIR, max(DELTA))
+        '%s/build_graphs_{organism}_d%s.log' %(LOG_DIR, MX_DELTA)
     shell:
         'mkdir -p %s;' %GRAPH_DATA_DIR + 
         '%s/hic_to_graph.py -d {params.mx_delta} -f {params.hic_format}' %BIN_DIR +
@@ -158,12 +163,12 @@ rule buildSequentialGraphs:
                 wildcards.organism],
         homology_table = '%s/homology_%s.csv' %(GENE_DATA_DIR, ORG_SHORT)
     params:
-        mx_delta = max(DELTA),
+        mx_delta = MX_DELTA,
         hic_format = HIC_FORMAT,
     output:
-        '%s/{organism}_d%s.ml' %(SEQ_GRAPH_DATA_DIR, max(DELTA))
+        '%s/{organism}_d%s.ml' %(SEQ_GRAPH_DATA_DIR, MX_DELTA)
     log:
-        '%s/build_graphs_seq_{organism}_d%s.log' %(LOG_DIR, max(DELTA))
+        '%s/build_graphs_seq_{organism}_d%s.log' %(LOG_DIR, MX_DELTA)
     shell:
         'mkdir -p %s;' %SEQ_GRAPH_DATA_DIR + 
         '%s/hic_to_graph.py -d {params.mx_delta} -f {params.hic_format}' %BIN_DIR +
@@ -173,14 +178,14 @@ rule buildSequentialGraphs:
 
 rule buildDiffGraphs:
     input:
-        o1 = '%s/{o1}_d%s.ml' %(GRAPH_DATA_DIR, max(DELTA)),
-        o2 = '%s/{o2}_d%s.ml' %(GRAPH_DATA_DIR, max(DELTA))
+        o1 = '%s/{o1}_d%s.ml' %(GRAPH_DATA_DIR, MX_DELTA),
+        o2 = '%s/{o2}_d%s.ml' %(GRAPH_DATA_DIR, MX_DELTA)
     params:
-        mx_delta = max(DELTA)
+        mx_delta = MX_DELTA
     output:
-        '%s/{o1}-{o2}_d%s.ml' %(DIFF_GRAPH_DATA_DIR, max(DELTA))
+        '%s/{o1}-{o2}_d%s.ml' %(DIFF_GRAPH_DATA_DIR, MX_DELTA)
     log:
-        '%s/build_diff_graphs_{o1}-{o2}_d%s.log' %(LOG_DIR, max(DELTA))
+        '%s/build_diff_graphs_{o1}-{o2}_d%s.log' %(LOG_DIR, MX_DELTA)
     shell:
         'mkdir -p %s;' %DIFF_GRAPH_DATA_DIR + 
         '%s/construct_diff_graph.py -d {params.mx_delta} {input.o1} ' %BIN_DIR + 
@@ -189,7 +194,7 @@ rule buildDiffGraphs:
 
 rule findTeams:
     input:
-        graph=expand('%s/{organism}_d%s.ml' %(GRAPH_DATA_DIR, max(DELTA)),
+        graph=expand('%s/{organism}_d%s.ml' %(GRAPH_DATA_DIR, MX_DELTA),
                 organism=ORGANISMS)
     output:
         '%s/%s_d{delta,[0-9.]+}.csv' %(TEAMS_DIR, ORG_SHORT)
@@ -202,7 +207,7 @@ rule findTeams:
 
 rule findStringTeams:
     input:
-        graph=expand('%s/{organism}_d%s.ml' %(SEQ_GRAPH_DATA_DIR, max(DELTA)),
+        graph=expand('%s/{organism}_d%s.ml' %(SEQ_GRAPH_DATA_DIR, MX_DELTA),
                 organism=ORGANISMS)
     output:
         '%s/%s_d{delta,[0-9.]+}.csv' %(SEQ_TEAMS_DIR, ORG_SHORT)
@@ -215,7 +220,7 @@ rule findStringTeams:
 
 rule findDiffTeams:
     input:
-        graphs=expand('%s/{odiff}_d%s.ml' %(DIFF_GRAPH_DATA_DIR, max(DELTA)),
+        graphs=expand('%s/{odiff}_d%s.ml' %(DIFF_GRAPH_DATA_DIR, MX_DELTA),
                 odiff = map(lambda x: '-'.join(x), ORG_DIFF))
     output:
         '%s/%s_d{delta,[0-9.]+}.csv' %(DIFF_TEAMS_DIR, '_'.join(map(lambda x:
