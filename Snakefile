@@ -51,6 +51,9 @@ GO_OBO_FILE = next(iter(glob('%s/*.obo' %config['go_data_dir'])), [])
 GO_REF = config['go_reference_species']
 GO_SAMPLE_SIZE = config['go_sample_pool_size']
 
+OCCURRENCE_MIN = config.get('occurrence_min', 1)
+REAL_GCS = config.get('biological_geneclusters_file', 'biological_geneclusters.txt')
+
 if MX_DELTA < max(DELTA):
     print(('\t!! ERROR: value for \'max_delta\' cannot be set lower than ' + \
             'maximum delta in list \'delta\''))
@@ -89,6 +92,17 @@ rule all_diff:
     input:
         expand('%s/%s_d{delta}.csv' %(DIFF_TEAMS_DIR, '_'.join(map(lambda x:
                 '-'.join(x), ORG_DIFF))), delta=DELTA)
+
+
+rule check_occurrence:
+    input:
+        'occurrences_%s_m%s.csv' %(ORG_SHORT, OCCURRENCE_MIN)
+       
+
+rule check_occurrence_seq:
+    input:
+        'occurrences_seq_%s_m%s.csv' %(ORG_SHORT, OCCURRENCE_MIN)
+        
 
 rule normalize:
     input:
@@ -197,7 +211,7 @@ rule findTeams:
         graph=expand('%s/{organism}_d%s.ml' %(GRAPH_DATA_DIR, MX_DELTA),
                 organism=ORGANISMS)
     output:
-        '%s/%s_d{delta,[0-9.]+}.csv' %(TEAMS_DIR, ORG_SHORT)
+        '%s/%s_d{delta,[0-9.-]+}.csv' %(TEAMS_DIR, ORG_SHORT)
     benchmark:
         'benchmarks/teams_spatial_%s_d{delta}.txt' %ORG_SHORT
     shell:
@@ -210,7 +224,7 @@ rule findStringTeams:
         graph=expand('%s/{organism}_d%s.ml' %(SEQ_GRAPH_DATA_DIR, MX_DELTA),
                 organism=ORGANISMS)
     output:
-        '%s/%s_d{delta,[0-9.]+}.csv' %(SEQ_TEAMS_DIR, ORG_SHORT)
+        '%s/%s_d{delta,[0-9.-]+}.csv' %(SEQ_TEAMS_DIR, ORG_SHORT)
     benchmark:
         'benchmarks/teams_seq_%s_d{delta}.txt' %ORG_SHORT
     shell:
@@ -223,7 +237,7 @@ rule findDiffTeams:
         graphs=expand('%s/{odiff}_d%s.ml' %(DIFF_GRAPH_DATA_DIR, MX_DELTA),
                 odiff = map(lambda x: '-'.join(x), ORG_DIFF))
     output:
-        '%s/%s_d{delta,[0-9.]+}.csv' %(DIFF_TEAMS_DIR, '_'.join(map(lambda x:
+        '%s/%s_d{delta,[0-9.-]+}.csv' %(DIFF_TEAMS_DIR, '_'.join(map(lambda x:
                 '-'.join(x), ORG_DIFF)))
     benchmark:
         'benchmarks/teams_diff_%s_d{delta}.txt' %'_'.join(map(lambda x:
@@ -300,7 +314,7 @@ rule go_neighbor_cluster_scores:
                 GO_SAMPLE_SIZE),
         teams = '{teams_dir}/%s_d{delta}.csv' %ORG_SHORT
     output:
-        '%s/{teams_dir}/%s_ref_%s_d{delta,[0-9.]+}.csv' %(GO_ANALYSIS_DIR,
+        '%s/{teams_dir}/%s_ref_%s_d{delta,[0-9.-]+}.csv' %(GO_ANALYSIS_DIR,
                 ORG_SHORT, GO_REF)
     log:
         '%s/nearest_neighbor_go_scores_%s_d{delta}_n%s.log' %(LOG_DIR,
@@ -317,7 +331,7 @@ rule go_scores_significant:
         '%s/{teams_dir}/%s_ref_%s_d{delta}.csv' %(GO_ANALYSIS_DIR, ORG_SHORT,
                 GO_REF)
     output:
-        '%s/{teams_dir}/%s_ref_%s_d{delta,[0-9.]+}.significant' %(
+        '%s/{teams_dir}/%s_ref_%s_d{delta,[0-9.-]+}.significant' %(
                 GO_ANALYSIS_DIR, ORG_SHORT, GO_REF)
     shell:
         'awk -F "\\t" \'{{if ($4 >= 0 && $4 < 0.05) print $0}}\' {input} | '
@@ -339,4 +353,28 @@ rule go_score_stats:
         '   j=`awk -F "\\t" "{{if (\\\$2 > 0) sum += \\\$3/\\\$2}} END {{print sum/$m}}" %s/%s/%s_ref_%s_d$d.csv`;' %(GO_ANALYSIS_DIR, SEQ_TEAMS_DIR, ORG_SHORT, GO_REF) +
         '   echo -e "$d\t$i\t$j";'
         'done > {output}'
+
+rule check_occurrence_rule:
+    input:
+        realgc = REAL_GCS,
+        teams = expand('%s/%s_d{delta}.csv' %(TEAMS_DIR, ORG_SHORT), delta=DELTA)
+    params:
+        min_occ = OCCURRENCE_MIN
+    output:
+        'occurrences_%s_m%s.csv' %(ORG_SHORT, OCCURRENCE_MIN)
+    shell:
+        '%s/check_occurrence.py -m {params.min_occ} {input.realgc} '
+        '{input.teams} > {output}'
+
+rule check_occurrence_seq_rule:
+    input:
+        realgc = REAL_GCS,
+        teams = expand('%s/%s_d{delta}.csv' %(SEQ_TEAMS_DIR, ORG_SHORT), delta=DELTA)
+    params:
+        min_occ = OCCURRENCE_MIN
+    output:
+        'occurrences_seq_%s_m%s.csv' %(ORG_SHORT, OCCURRENCE_MIN)
+    shell:
+        '%s/check_occurrence.py -m {params.min_occ} {input.realgc} '
+        '{input.teams} > {output}'
 
