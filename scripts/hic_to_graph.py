@@ -233,12 +233,10 @@ def parseHiCMapAndWriteGraph(hic_map_files, data_type, genes, homologies, delta,
 
         last_gene = -1
         # segment counter
-        i = 0
-        for line in data:
+        for i, line in enumerate(data):
             # continue with next line if no gene is associated with this
             # segment
             if not ysegs2gene[i]:
-                i += 1
                 continue
 
             if doSequential:
@@ -313,16 +311,16 @@ def parseHiCMapAndWriteGraph(hic_map_files, data_type, genes, homologies, delta,
                             if x_segments[i] == y_segments[j]:
                                 w = delta
                             elif x_segments[j][1] > y_segments[i][1]:
-                                d = abs(genes[xsegs2gene[j][-1]][1] -
-                                        genes[ysegs2gene[i][0]][1])
+                                d = abs(genes[xsegs2gene[j][0]][1] -
+                                        genes[ysegs2gene[i][-1]][1])
                                 # if segment distance is measured extremity to
                                 # extremity we need to add +1 (same holds for
                                 # gene distance in the line above)
                                 #w = w/(x_segments[j][2]-y_segments[i][1]+1) * d
                                 w = w/(x_segments[j][1]-y_segments[i][1]) * d
                             else:
-                                d = abs(genes[ysegs2gene[i][-1]][1] -
-                                        genes[xsegs2gene[j][0]][1])
+                                d = abs(genes[ysegs2gene[i][0]][1] -
+                                        genes[xsegs2gene[j][-1]][1])
                                 # if segment distance is measured extremity to
                                 # extremity we need to add +1 (same holds for
                                 # gene distance in the line above)
@@ -354,7 +352,6 @@ def parseHiCMapAndWriteGraph(hic_map_files, data_type, genes, homologies, delta,
                                     out.write(('\tedge [\n\tsource %s\n\ttarget '+\
                                             '%s\n\tweight %.4f\n\t]\n') %(x, y,
                                                 w*d))
-            i += 1 
         if LOG.level == logging.DEBUG:
             LOG.debug('INTER_DISTS\t%s' %','.join(map(str, inter_dist)))
             LOG.debug('INTRA_DISTS\t%s' %','.join(map(str, intra_dist)))
