@@ -67,9 +67,9 @@ if __name__ == '__main__':
 
     for v, data in G.nodes(data=True):
         if G1.has_node(v):
-            data['class'] = G1[v]['class']
+            data['class'] = G1.node[v]['class']
         else:
-            data['class'] = G2[v]['class']
+            data['class'] = G2.node[v]['class']
 
     LOG.info('output graph')
     nx.write_gml(G, stdout) 
