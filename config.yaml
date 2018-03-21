@@ -1,33 +1,29 @@
 
 # PLEASE ADJUST THE FOLLOWING PARAMETERS --------------------------------------
 
-hic_file_ending: .txt
-hic_map_format: DIXON # choices are DIXON, HOMER
-
-# uncomment and adjust the following setting if you want to set row/column
-# offset of the Hi-C maps explicitely:
-#
+hic_file_ending: .trv
+hic_map_format: HOMER # choices are DIXON, HOMER
+# set hic row/column offset explicitely
 # hic_row_offset: 0
 # hic_col_offset: 0
-
+#
 gene_data_file_ending: .gff
 gene_data_format: GFF3 # choices are ENSEMBLE, GFF3
-delta: [1, 2.5, 5]
-
-# you *must* adjust the following parameter in you want to perform a GO
-# analysis:
-go_reference_species: human
-
+delta: #[-2.25, -2.5, -2.75] #[-1.75, -1.5, -1.25, -1, -0.75, -0.5, -0.25, 0]
+delta: [0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5]
+max_delta: 5
+go_reference_species: AL
 normalization_type: AVG # choices are AVG, MAX
 go_sample_pool_size: 10000000
 go_sample_max_cluster_size: 25
+#compare_only: [AR, BR]
 
-# uncomment and adjust the following setting if you want to perform analysis
-# only on a subset of your supplied data
-#
-# compare_only: [human, mouse] 
+# make sure no genome name contains delimiters '-' or '_'
+diff_pairs: [[AR, AL], [BR, BL]] #[[AL, AR], [BL, BR]] #
 
 #------------------------------------------------------------------------------
+
+
 # DO NOT ADJUST THE FOLLOWING PARAMETERS (unless you know what you are doing) -
 
 bin_dir: scripts
