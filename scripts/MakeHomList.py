@@ -1,31 +1,44 @@
 #!/usr/bin/env python2
 
+from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter as ADHF
 import sys
+import csv
 
-mfile = open(sys.argv[2], "r")
 
-homList = []
+def readHomologyFromEnsemble(data):
+    res = list()
 
-for line in mfile:
-	cols = line.split(',')
+    isHeader = True
+    for line in csv.reader(data, delimiter=','):
+        if isHeader:
+            isHeader = False
+            continue
+        res.append((line[0].strip(), line[3].strip()))
+    return res
 
-	homList.append((cols[0], cols[3]))
+def mapTo(target, **source):
 
-mfile.close()
+    sMap = [dict(map(reversed, s)) for s in source
 
-hfile = open(sys.argv[1], "r")
+#    for gene_id, 
+    for ent in homList:
+        hFile.write(humanGeneDict[ent[0]] + '\t' + ent[1]+ "\n")
 
-humanGeneDict = {}
 
-for line in hfile:
-	cols = line.split(',')
+if __name__ == '__main__':
+    
+    # setting up the argument parser
+    parser = ArgumentParser(description='Reads annotations in Ensemble ' + \
+            'format and produces a homology table', formatter_class=ADHF)
 
-	if not cols[2] in humanGeneDict:
-		humanGeneDict[cols[2]] = cols[3]
+    parser.add_argument('annotation_file',  type=str, nargs='+',
+            help='Annoation file')
 
-hfile.close()
+    args = parser.parse_args()
 
-hFile = open(sys.argv[3], "w")
 
-for ent in homList:
-	hFile.write(humanGeneDict[ent[0]] + '\t' + ent[1]+ "\n")
+    # output annotations
+    out = stdout 
+    for ann in annotations:
+        print >> out, '\t'.join(map(str, ann))
+
