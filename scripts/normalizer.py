@@ -46,6 +46,7 @@ def toDist(m):
     if len(diagEntrs):
         avgAbDiag = sum(diagEntrs)/len(diagEntrs)
 
+    new_m[new_m <= 0] = float('-inf')
     new_m = matMax - new_m
 
     # increase resolution of distances for the main diagonal of
