@@ -110,15 +110,15 @@ rule check_occurrence_diff:
 
 rule normalize:
     input:
-        expand('%s/{hic_map}' %HIC_DATA_DIR, hic_map=HIC_MAPS_BASE)
+        '%s/{hic_map}' %HIC_DATA_DIR
     params:
         row_offset = HIC_ROW_OFFSET,
         col_offset = HIC_COL_OFFSET,
         ntype = config.get('normalization_type', 'MAX')
     output:
-        expand('%s/{hic_map}.dmat' %HIC_DATA_DIR, hic_map=HIC_MAPS_BASE)
+        '%s/{hic_map}.dmat' %HIC_DATA_DIR 
     log:
-        '%s/normalizer.log' %LOG_DIR
+        '%s/normalizer_{hic_map}.log' %LOG_DIR
     shell:
         '%s/normalizer.py -t {params.ntype} -x {params.col_offset} ' %BIN_DIR +
         '-y {params.row_offset} {input} 2> {log}'
