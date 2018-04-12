@@ -54,6 +54,20 @@ GO_SAMPLE_SIZE = config['go_sample_pool_size']
 OCCURRENCE_MIN = config.get('occurrence_min', 1)
 REAL_GCS = config.get('biological_geneclusters_file', 'biological_geneclusters.txt')
 
+HICUP_DATA_DIR = config['hicup_data_dir']
+HICUP_OUT_DIR = config['hicup_out_dir']
+HIC_DATA_DIR=config['hic_data_dir']
+HICUP_DIR= config['hicup_dir']
+HOMER_DIR= config['homer_dir']
+HICUP_IDS, = glob_wildcards('%s/{id}.hicup.bam' %HICUP_DATA_DIR)
+RESOLUTION = config['resolution']
+TAG_DIRECTORY_DIR=config['tag_dir']
+ANALYSE_HIC=config['analyse_dir']
+FORMAT_MAKETAGDIR = 'HiCsummary'
+MAX = config['max']
+
+
+
 if MX_DELTA < max(DELTA):
     print(('\t!! ERROR: value for \'max_delta\' cannot be set lower than ' + \
             'maximum delta in list \'delta\''))
@@ -108,20 +122,54 @@ rule check_occurrence_diff:
         'occurrences_diff_%s_m%s.csv' %('_'.join(map(lambda x: '-'.join(x),
                 ORG_DIFF)), OCCURRENCE_MIN)
 
-rule normalize:
-    input:
-        '%s/{hic_map}' %HIC_DATA_DIR
+rule hicup2homer:
+    input: 
+        "%s/{id}.hicup.bam" %HICUP_DATA_DIR
+        	 
+    output: 
+        '%s/{id}.hicup.bam.homer'  %HICUP_DATA_DIR
+
+    shell:		
+        '%s/Conversion/hicup2homer {input}' %HICUP_DIR
+
+rule makeTagDirectory:
+    input: 
+        '%s/{id}.hicup.bam.homer' %HICUP_DATA_DIR
+
     params:
-        row_offset = HIC_ROW_OFFSET,
-        col_offset = HIC_COL_OFFSET,
-        ntype = config.get('normalization_type', 'MAX')
-    output:
-        '%s/{hic_map}.dmat' %HIC_DATA_DIR 
-    log:
-        '%s/normalizer_{hic_map}.log' %LOG_DIR
+        format = FORMAT_MAKETAGDIR,
+        maxAvg = MAX,
+
+    output: 
+        expand('%s/{{id}}_r{{resolution}}' %TAG_DIRECTORY_DIR)
+
     shell:
-        '%s/normalizer.py -t {params.ntype} -x {params.col_offset} ' %BIN_DIR +
-        '-y {params.row_offset} {input} 2> {log}'
+        '%s/makeTagDirectory {output} -format  {params.format} -removeSpikes {wildcards.resolution} {params.maxAvg} {input}' %HOMER_DIR
+			
+rule analyseHic:
+    input:
+        '%s/{id}_r{resolution}' %TAG_DIRECTORY_DIR
+
+    output: 
+        expand('%s/{{id}}_r{{resolution}}.txt' %ANALYSE_HIC)
+    
+    shell: 
+        '%s/analyzeHiC {input} -res {wildcards.resolution} -norm > {output}' %HOMER_DIR
+
+rule changeFormat:
+    input:
+        '%s/{id}_r{resolution}.txt' %ANALYSE_HIC
+	
+    output: 
+        res='%s/{id}_r{resolution}.dmat' %ANALYSE_HIC,
+        tt=temp('%s/{id}_r{resolution}.dmat.tmp' %ANALYSE_HIC)
+
+    shell: 
+        'cut -f 3- {input} | tail -n +2 > {output.tt};'
+        'NO_ROWS=$(wc -l {output.tt}| cut -d" " -f1); '
+        'NO_COLS=$(awk -F"\\t" "{{print NF;}}" {output.tt} | head -n 1)||true; '
+        'echo $NO_ROWS $NO_COLS > {output.res};'
+        'cat {output.tt} >> {output.res}'
 
 
 rule process_annotations:
