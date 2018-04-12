@@ -16,15 +16,26 @@ go_reference_species: AL
 normalization_type: AVG # choices are AVG, MAX
 go_sample_pool_size: 10000000
 go_sample_max_cluster_size: 25
+resolution: [10000,25000] # Set resolution of HiC matrix
 #compare_only: [AR, BR]
 
 # make sure no genome name contains delimiters '-' or '_'
 diff_pairs: [[AR, AL], [BR, BL]] #[[AL, AR], [BL, BR]] #
 
+max: 5
 #------------------------------------------------------------------------------
 
 
 # DO NOT ADJUST THE FOLLOWING PARAMETERS (unless you know what you are doing) -
+
+
+hicup_out_dir: /vol/cluster-data/fkaiser/data/hic_maps/normalize
+tag_dir: /vol/cluster-data/fkaiser/data/hic_maps/normalize/tagDir
+analyse_dir: /vol/cluster-data/fkaiser/data/hic_maps/normalize/normalized_hic_maps 
+
+homer_dir: /prj/3dgeneclusters/tools/homer/bin
+hicup_data_dir: /prj/3dgeneclusters/babraham_collab/raw_data
+hicup_dir: /prj/3dgeneclusters/tools/hicup
 
 bin_dir: scripts
 hic_data_dir: data/hic_maps
