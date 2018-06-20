@@ -7,19 +7,30 @@ from glob import glob
 import re
 
 BIN_DIR = config['bin_dir']
-HIC_DATA_DIR = config['hic_data_dir']
-
+HICUP_DATA_DIR = config['hicup_data_dir']
+RESOLUTION = config['resolution']
 ORGANISMS = config.get('compare_only', sorted(basename(x) for x in glob(
-        '%s/*' %HIC_DATA_DIR) if isdir(x)))
+        '%s/*' %HICUP_DATA_DIR) if isdir(x)))
 ORG_SHORT = '_'.join(map(lambda x: x[:3].lower(), ORGANISMS))
 
 ORG_DIFF = [x for x in config.get('diff_pairs', ()) if x[0] in ORGANISMS and
         x[1] in ORGANISMS]
 
-HIC_MAPS_BASE = sorted(map(lambda y: join(*(y.split('/')[
-        len(HIC_DATA_DIR.split('/')):])), chain(*(glob(
-        '%s/%s/*%s' %(HIC_DATA_DIR, x, config['hic_file_ending'])) for x in
-        ORGANISMS))))
+HIC_MAPS_RES = sorted(
+    map(lambda y: join(*(y.split('/')[len(HICUP_DATA_DIR.split('/')):]))
+    , chain(*(glob('%s/%s/*.bam' %(HICUP_DATA_DIR, x)) for x in ORGANISMS))))
+
+HIC_MAPS_BASE=[]
+for x in HIC_MAPS_RES:
+    z=x.split(".",1)[0]
+    z=z.split("/",1)[1]
+    HIC_MAPS_BASE.append(z)
+tmpp=[]
+for x in HIC_MAPS_BASE:
+     for k in RESOLUTION:
+            tmpp.append(x+"_"+str(k))
+HIC_MAPS_RES=tmpp
+
 HIC_FORMAT = config['hic_map_format']
 HIC_ROW_OFFSET = 0
 HIC_COL_OFFSET = 0
@@ -38,6 +49,11 @@ DIFF_GRAPH_DATA_DIR = config['graph_data_dir'] + '_diff'
 GENE_DATA_DIR = config['gene_data_dir']
 HOMOLOGY_MAPS = sorted(glob('%s/%s/*%s' %(GENE_DATA_DIR, x,
         config['gene_data_file_ending']))[0] for x in ORGANISMS)
+ANALYSE_HIC=config['analyse_dir']
+print(GENE_DATA_DIR)
+#HIC_MAPS_RES=
+print(ANALYSE_HIC)
+print(HIC_MAPS_RES)
 
 TEAMS_DIR = config['graph_teams_dir']
 SEQ_TEAMS_DIR = config['graph_teams_dir'] + '_seq'
@@ -54,15 +70,14 @@ GO_SAMPLE_SIZE = config['go_sample_pool_size']
 OCCURRENCE_MIN = config.get('occurrence_min', 1)
 REAL_GCS = config.get('biological_geneclusters_file', 'biological_geneclusters.txt')
 
-HICUP_DATA_DIR = config['hicup_data_dir']
 HICUP_OUT_DIR = config['hicup_out_dir']
-HIC_DATA_DIR=config['hic_data_dir']
+HIC_DATA_DIR = config['hic_data_dir']
 HICUP_DIR= config['hicup_dir']
 HOMER_DIR= config['homer_dir']
 HICUP_IDS, = glob_wildcards('%s/{id}.hicup.bam' %HICUP_DATA_DIR)
-RESOLUTION = config['resolution']
+
 TAG_DIRECTORY_DIR=config['tag_dir']
-ANALYSE_HIC=config['analyse_dir']
+
 FORMAT_MAKETAGDIR = 'HiCsummary'
 MAX = config['max']
 
@@ -73,10 +88,10 @@ if MX_DELTA < max(DELTA):
             'maximum delta in list \'delta\''))
     exit(1)
 
-if GO_REF and GO_REF not in ORGANISMS:
-    print(('\t!! ERROR: GO reference genome %s not found in set ' + \
-            'of organisms {%s}. Exiting') %(GO_REF, ', '.join(ORGANISMS)))
-    exit(1)
+#if GO_REF and GO_REF not in ORGANISMS:
+#   print(('\t!! ERROR: GO reference genome %s not found in set ' + \
+#            'of organisms {%s}. Exiting') %(GO_REF, ', '.join(ORGANISMS)))
+ #   exit(1)
 
 LOG_DIR = config['log_dir']
 
@@ -122,47 +137,49 @@ rule check_occurrence_diff:
         'occurrences_diff_%s_m%s.csv' %('_'.join(map(lambda x: '-'.join(x),
                 ORG_DIFF)), OCCURRENCE_MIN)
 
-rule hicup2homer:
+rule hicup:
     input: 
-        "%s/{id}.hicup.bam" %HICUP_DATA_DIR
-        	 
-    output: 
-        '%s/{id}.hicup.bam.homer'  %HICUP_DATA_DIR
-
-    shell:		
-        '%s/Conversion/hicup2homer {input}' %HICUP_DIR
-
-rule makeTagDirectory:
-    input: 
-        '%s/{id}.hicup.bam.homer' %HICUP_DATA_DIR
-
-    params:
-        format = FORMAT_MAKETAGDIR,
-        maxAvg = MAX,
+         '%s/{orga}/{id}.hicup.bam' %HICUP_DATA_DIR
 
     output: 
-        expand('%s/{{id}}_r{{resolution}}' %TAG_DIRECTORY_DIR)
+        '%s/{orga}/{id}.hicup.bam.homer' %HICUP_DATA_DIR
 
     shell:
-        '%s/makeTagDirectory {output} -format  {params.format} -removeSpikes {wildcards.resolution} {params.maxAvg} {input}' %HOMER_DIR
-			
+        '%s/Conversion/hicup2homer {input}' %HICUP_DIR
+
+for x in ORGANISMS:
+    for res in RESOLUTION:
+        rule:
+            input: 
+              expand('%s/%s/{{hi}}.hicup.bam.homer' %(HICUP_DATA_DIR,x))
+
+            params:
+                format = FORMAT_MAKETAGDIR,
+                maxAvg = MAX,
+
+            output: 
+                expand('%s/{{hi}}_%s' %(TAG_DIRECTORY_DIR,res))
+
+            shell:
+               '%s/makeTagDirectory {output} -format  {params.format} -removeSpikes %s {params.maxAvg} {input}' %(HOMER_DIR,res)
+
 rule analyseHic:
     input:
-        '%s/{id}_r{resolution}' %TAG_DIRECTORY_DIR
+        '%s/{hic_map}_{resolution}' %TAG_DIRECTORY_DIR
 
     output: 
-        expand('%s/{{id}}_r{{resolution}}.txt' %ANALYSE_HIC)
+        '%s/{hic_map}_{resolution}.txt' %ANALYSE_HIC
     
     shell: 
         '%s/analyzeHiC {input} -res {wildcards.resolution} -norm > {output}' %HOMER_DIR
 
 rule changeFormat:
     input:
-        '%s/{id}_r{resolution}.txt' %ANALYSE_HIC
-	
+        expand('%s/{hic_map}.txt' %ANALYSE_HIC,hic_map=(x for x in HIC_MAPS_RES))
+
     output: 
-        res='%s/{id}_r{resolution}.dmat' %ANALYSE_HIC,
-        tt=temp('%s/{id}_r{resolution}.dmat.tmp' %ANALYSE_HIC)
+        res='%s/{hic_map}.dmat' %ANALYSE_HIC,
+        tt=temp('%s/{hic_map}.dmat.tmp' %ANALYSE_HIC)
 
     shell: 
         'cut -f 3- {input} | tail -n +2 > {output.tt};'
@@ -198,9 +215,8 @@ if config['gene_data_format'] == 'ENSEMBLE':
 
 rule buildGraphs:
     input:
-        hic_dmat = lambda wildcards: expand('%s/{hic_map}.dmat' %HIC_DATA_DIR,
-                hic_map=(x for x in HIC_MAPS_BASE if x.split('/', 1)[0] ==
-                wildcards.organism)),
+        hic_dmat = lambda wildcards: expand('%s/{hic_map}.dmat' %ANALYSE_HIC,
+                hic_map=(x for x in HIC_MAPS_RES)),
         annotation_file = lambda wildcards: ['%s.annotation' %x.rsplit('.',
                 1)[0] for x in HOMOLOGY_MAPS if x.startswith('%s/%s' %(GENE_DATA_DIR, 
                 wildcards.organism))],
@@ -222,7 +238,7 @@ rule buildGraphs:
 rule buildSequentialGraphs:
     input:
         hic_dmat = lambda wildcards: expand('%s/{hic_map}.dmat' %HIC_DATA_DIR,
-                hic_map=(x for x in HIC_MAPS_BASE if x.split('/', 1)[0] ==
+                hic_map=(x for x in HIC_MAPS_RES if x.split('/', 1)[0] ==
                 wildcards.organism)),
         annotation_file = lambda wildcards: ['%s.annotation' %x.rsplit('.',
                 1)[0] for x in HOMOLOGY_MAPS if x.rsplit('/', 2)[-2] ==
@@ -268,7 +284,7 @@ rule findTeams:
         'benchmarks/teams_spatial_%s_d{delta}.txt' %ORG_SHORT
     shell:
         'mkdir -p %s;' %TEAMS_DIR + 
-        '%s/graph_teams.py -d {wildcards.delta} {input} > {output}' %BIN_DIR
+        '%s/graph_teams.py -d {wildcards.delta}  {input} > {output}' %BIN_DIR
 
 
 rule findStringTeams:
