@@ -28,8 +28,6 @@ max: 5
 
 # DO NOT ADJUST THE FOLLOWING PARAMETERS (unless you know what you are doing) -
 
-
-hicup_out_dir: data/hic_maps/normalize
 tag_dir: data/hic_maps/normalize/tagDir
 analyse_dir: data/hic_maps
 

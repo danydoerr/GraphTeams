@@ -50,10 +50,7 @@ GENE_DATA_DIR = config['gene_data_dir']
 HOMOLOGY_MAPS = sorted(glob('%s/%s/*%s' %(GENE_DATA_DIR, x,
         config['gene_data_file_ending']))[0] for x in ORGANISMS)
 ANALYSE_HIC=config['analyse_dir']
-print(GENE_DATA_DIR)
-#HIC_MAPS_RES=
-print(ANALYSE_HIC)
-print(HIC_MAPS_RES)
+
 
 TEAMS_DIR = config['graph_teams_dir']
 SEQ_TEAMS_DIR = config['graph_teams_dir'] + '_seq'
@@ -70,7 +67,7 @@ GO_SAMPLE_SIZE = config['go_sample_pool_size']
 OCCURRENCE_MIN = config.get('occurrence_min', 1)
 REAL_GCS = config.get('biological_geneclusters_file', 'biological_geneclusters.txt')
 
-HICUP_OUT_DIR = config['hicup_out_dir']
+
 HIC_DATA_DIR = config['hic_data_dir']
 HICUP_DIR= config['hicup_dir']
 HOMER_DIR= config['homer_dir']

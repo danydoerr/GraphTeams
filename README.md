@@ -31,13 +31,10 @@ TUTORIAL
 ------------------------------------------------------------------------------
 
 1. For each organism of your dataset:
-    * create a folder data/hic_maps/{organism name} where {organism name} is
+    * create a folder data/genomic/{organism name} where {organism name} is
       the same name for a species used inside the homology table of Ensembl
       and in connection with it.
-    * copy all Hi-C maps of the organism into data/hic_maps/{organism name} 
-      (note that all file names must contain the resolution of their 
-      corresponding Hi-C map in base pairs directly in front of their suffix 
-      as specified in the config.yaml file)
+    * copy all Hiccup files in /data/genomic/{organism name} 
     * file names of intrachromosomal Hi-C maps should contain a substring 
       "chrID." where "ID" is the identifier of the chromosome belonging to the
       map which is also used in the corresponding annotation file
@@ -57,7 +54,8 @@ TUTORIAL
       membership; 
     * adjust the choices of the delta threshold (for more information on this
       parameter, we refer to https://link.springer.com/chapter/10.1007/978-3-319-67979-2_11);
-
+	* adjust choices of resolution for HiC maps 
+	
 3. Run 'snakemake --cores {number of cores you want to allocate for running GraphTeams}'
 4. Identified graph teams will be written to the graph_teams sub-directory
 
